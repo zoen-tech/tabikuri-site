@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "verifiedAt": "2026-11-17T06:46:55.995Z",
+  "checks": [
+    "a: all 24 prices/add paths, residency toggle, replacement, modal focus passed",
+    "a: reload, S1/S2 shared cart, full notices and four viewport sizes passed",
+    "a: localStorage read/write failures retain the working add flow",
+    "b: all 24 prices/add paths, residency toggle, replacement, modal focus passed",
+    "b: reload, S1/S2 shared cart, full notices and four viewport sizes passed",
+    "b: localStorage read/write failures retain the working add flow",
+    "390px full-page screenshots and labeled four-screen comparison saved"
+  ]
+}

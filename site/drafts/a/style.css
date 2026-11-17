@@ -1,0 +1,14 @@
+:root { --accent: #2456ac; --accent-soft: #edf3fd; --card-radius: 20px; --button-radius: 15px; --selection-radius: 13px; }
+.hero { padding-top: 34px; padding-bottom: 30px; background: linear-gradient(180deg,var(--accent-soft),var(--paper)); }
+.hero h1 { max-width: 340px; }
+.hero .primary { justify-content: space-between; }
+.hero .primary svg { width: 20px; }
+.services-section { padding-top: 24px; padding-bottom: 32px; }
+.service { background: var(--paper); border: 1px solid var(--line); }
+.service-icon { border-radius: 14px; }
+.catalog { border-radius: 28px 28px 0 0; }
+.product-card { border-color: transparent; }
+.product-heading { background: linear-gradient(180deg,var(--accent-soft),var(--paper)); }
+.product-heading .breadcrumb { margin-top: -8px; }
+.selector { padding-top: 20px; }
+.prices-section { background: var(--soft); }
