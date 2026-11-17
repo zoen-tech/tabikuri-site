@@ -1,7 +1,6 @@
 /* Run outside the sandbox: node site/verify-browser.cjs */
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
-const http = require("node:http");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 const { chromium } = require("/Users/hirakawa-takumi/tools/browser/node_modules/playwright-core");
@@ -15,28 +14,32 @@ const routes = ["", "mounjaro/", "cart/", "confirm/", "guide/", "notice/", "lega
 const widths = [360, 390, 768, 1280];
 const results = [];
 let browser;
-let server;
 
 const log = message => { results.push(message); console.log(message); };
 const numeric = text => Number(text.replace(/[^0-9]/g, ""));
 const mime = file => ({ ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json; charset=utf-8" }[path.extname(file)] || "application/octet-stream");
 
-function startServer() {
-  return new Promise((resolve, reject) => {
-    server = http.createServer((request, response) => {
-      const pathname = decodeURIComponent(new URL(request.url, origin).pathname);
-      let file = path.resolve(dist, `.${pathname}`);
-      if (!file.startsWith(dist + path.sep) && file !== dist) { response.writeHead(403).end(); return; }
-      if (pathname.endsWith("/")) file = path.join(file, "index.html");
-      fs.readFile(file, (error, data) => {
-        if (error) { response.writeHead(404, { "content-type": "text/plain" }).end("404"); return; }
-        response.writeHead(200, { "content-type": mime(file), "cache-control": "no-store" });
-        response.end(data);
-      });
-    });
-    server.once("error", reject);
-    server.listen(8799, "127.0.0.1", resolve);
+async function createContext(options, virtualFiles = {}) {
+  const context = await browser.newContext(options);
+  await context.route(`${origin}/**`, async route => {
+    const pathname = decodeURIComponent(new URL(route.request().url()).pathname);
+    if (virtualFiles[pathname]) {
+      await route.fulfill(virtualFiles[pathname]);
+      return;
+    }
+    let file = path.resolve(dist, `.${pathname}`);
+    if (!file.startsWith(dist + path.sep) && file !== dist) {
+      await route.fulfill({ status: 403, body: "403" });
+      return;
+    }
+    if (pathname.endsWith("/")) file = path.join(file, "index.html");
+    try {
+      await route.fulfill({ status: 200, contentType: mime(file), body: fs.readFileSync(file), headers: { "cache-control": "no-store" } });
+    } catch {
+      await route.fulfill({ status: 404, contentType: "text/plain", body: "404" });
+    }
   });
+  return context;
 }
 
 async function open(context, route) {
@@ -52,7 +55,7 @@ async function open(context, route) {
 }
 
 async function checkAllPages() {
-  const context = await browser.newContext({ viewport: { width: 390, height: 900 } });
+  const context = await createContext({ viewport: { width: 390, height: 900 } });
   try {
     for (const lang of ["ko", "ja"]) for (const route of routes) {
       const prefix = lang === "ja" ? "/ja/" : "/";
@@ -76,12 +79,13 @@ async function checkAllPages() {
 }
 
 async function checkRequestFlow() {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const context = await createContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   try {
     const page = await open(context, "/mounjaro/");
     await page.evaluate(() => localStorage.clear());
     await page.reload();
     await page.waitForSelector('#app[data-ready="true"]');
+    assert.equal(await page.locator(".bottom-bar").count(), 0, "S2 hides the sticky bar when no line is selected");
     const prices = await page.evaluate(() => PRICES.map(row => [...row]));
     assert.equal(await page.locator('[data-dose][aria-pressed="true"]').count(), 0);
     assert.equal(await page.locator('[data-pens][aria-pressed="true"]').count(), 0);
@@ -119,6 +123,8 @@ async function checkRequestFlow() {
     assert.equal(numeric(await page.locator(".total-box .price").textContent()), prices[0][2] + prices[1][4]);
     assert.equal((await page.locator('[data-event="proceed-confirm"]').textContent()).trim(), copies.ko.ui.reserve);
     assert.equal(await page.locator('.required-notices + [data-event="proceed-confirm"]').count(), 1);
+    assert.equal((await page.locator('.bottom-bar .primary').textContent()).trim(), copies.ko.ui.reserve);
+    assert.equal(await page.locator('.bottom-bar .primary').getAttribute("href"), "/confirm/");
     const language = page.locator(".lang-link");
     await Promise.all([page.waitForURL("**/ja/cart/"), language.click()]);
     await page.waitForSelector('#app[data-ready="true"]');
@@ -133,6 +139,8 @@ async function checkRequestFlow() {
     assert.equal(await page.locator("[data-agreement]").count(), 4);
     assert.equal(await page.locator("#line-button").count(), 0);
     assert.equal(await page.locator('#line-panel[data-review="pending"] .email').count(), 1);
+    assert.equal((await page.locator("body").innerText()).includes(copies.ko.ui.handoff), false);
+    assert.ok((await page.locator("body").innerText()).includes(copies.ko.ui.finalCancel));
     for (const width of [360, 390]) {
       await page.setViewportSize({ width, height: 844 });
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, `Korean S4 overflow at ${width}`);
@@ -143,7 +151,7 @@ async function checkRequestFlow() {
 }
 
 async function checkStorageFallback() {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const context = await createContext({ viewport: { width: 390, height: 844 } });
   try {
     await context.addInitScript(() => {
       for (const name of ["localStorage", "sessionStorage"]) {
@@ -154,21 +162,40 @@ async function checkStorageFallback() {
     await page.locator('[data-dose="15mg"]').click();
     await page.locator('[data-pens="48"]').click();
     await page.locator("#add-button").click();
-    await Promise.all([page.waitForURL("**/cart/?r=M150-48"), page.locator("#added-sheet .primary").click()]);
+    assert.equal(new URL(page.url()).searchParams.get("r"), "M150-48", "add updates the current URL");
+    await page.reload();
+    await page.waitForSelector('#app[data-ready="true"]');
+    assert.equal(await page.locator("[data-cart-badge]").textContent(), "1", "reload restores the URL-backed line");
+    await Promise.all([page.waitForURL("**/cart/?r=M150-48"), page.locator(".cart-link").click()]);
     await page.waitForSelector('#app[data-ready="true"]');
     assert.equal(new URL(page.url()).searchParams.get("r"), "M150-48");
     assert.equal(await page.locator("[data-cart-dose]").count(), 1);
+    await page.locator('[data-remove="15mg"]').click();
+    assert.equal(new URL(page.url()).searchParams.has("r"), false, "removing the final line clears the current URL");
+    await page.reload();
+    await page.waitForSelector('#app[data-ready="true"]');
+    assert.equal(await page.locator("[data-cart-dose]").count(), 0, "reload does not resurrect a removed line");
+    await Promise.all([page.waitForURL("**/mounjaro/"), page.locator(".primary").click()]);
+    await page.locator('[data-dose="15mg"]').click();
+    await page.locator('[data-pens="48"]').click();
+    await page.locator("#add-button").click();
+    await Promise.all([page.waitForURL("**/cart/?r=M150-48"), page.locator("#added-sheet .primary").click()]);
     await Promise.all([page.waitForURL("**/confirm/?r=M150-48"), page.locator('[data-event="proceed-confirm"]').click()]);
     await page.waitForSelector('#app[data-ready="true"]');
     assert.equal(new URL(page.url()).searchParams.get("r"), "M150-48");
     assert.equal(await page.locator("[data-agreement]").count(), 4);
     assert.deepEqual(page.runtimeErrors, []);
   } finally { await context.close(); }
-  log("localStorage and sessionStorage denied: URL request code preserves S2-S4 state");
+  log("localStorage and sessionStorage denied: add/remove update the current URL and reload preserves the resulting S2-S4 state");
 }
 
 async function checkConfiguredLine() {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const context = await createContext({ viewport: { width: 390, height: 844 } }, {
+    "/config.js": {
+      contentType: "text/javascript",
+      body: `window.SITE_CONFIG = Object.freeze({ BRAND_NAME: Object.freeze({ ko: "타비 클리닉", ja: "たびクリ" }), LINE_ADD_URL: "${origin}/line-add", SITE_ORIGIN: "https://tabikuri.online", ALLOW_MULTI_LINES: true, NOINDEX: true, PUBLIC_BUILD: false });`
+    }
+  });
   try {
     await context.addInitScript(() => {
       localStorage.setItem("tabikuri-request-v2", JSON.stringify({
@@ -176,32 +203,35 @@ async function checkConfiguredLine() {
         expiresAt: Date.now() + 86400000
       }));
     });
-    await context.route(`${origin}/config.js`, route => route.fulfill({
-      contentType: "text/javascript",
-      body: `window.SITE_CONFIG = Object.freeze({ BRAND_NAME: Object.freeze({ ko: "타비 클리닉", ja: "たびクリ" }), LINE_ADD_URL: "${origin}/line-add", SITE_ORIGIN: "https://tabikuri.online", ALLOW_MULTI_LINES: true, NOINDEX: true, PUBLIC_BUILD: false });`
-    }));
     const page = await open(context, "/confirm/");
     assert.equal(await page.locator(".footer-contact").count(), 0);
     assert.equal((await page.locator("body").innerText()).includes(copies.ko.reviewed.contactBody), false);
     assert.equal(await page.locator("#line-panel").count(), 0);
     assert.equal(await page.locator("#line-button").isDisabled(), true);
     assert.equal(await page.locator('.required-notices + #line-button').count(), 1);
+    assert.equal(await page.locator(`[data-copy-key="ui.handoff"][data-review="pending"]`).count(), 1);
+    assert.ok((await page.locator("body").innerText()).includes(copies.ko.ui.handoff));
     for (const checkbox of await page.locator("[data-agreement]").all()) await checkbox.check();
     assert.equal(await page.locator("#line-button").isEnabled(), true);
     await Promise.all([page.waitForURL("**/line-add?request=*"), page.locator("#line-button").click()]);
     assert.equal(new URL(page.url()).searchParams.get("request"), "M050-12,M125-4");
     assert.deepEqual(page.runtimeErrors, []);
+    const home = await open(context, "/");
+    assert.equal((await home.locator("body").innerText()).includes(copies.ko.reviewed.contactBody), false);
+    await home.close();
   } finally { await context.close(); }
   log("Configured LINE: pending footer/card hidden, enabled button shown, adjacent notices, and M025-style request code passed");
 }
 
 async function checkCopyAndAccessibility() {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const context = await createContext({ viewport: { width: 390, height: 844 } });
   try {
     const home = await open(context, "/");
     const heroBox = await home.locator(".hero").boundingBox();
     assert.ok(heroBox.y + heroBox.height <= 844, "first view hero fits the mobile viewport");
     assert.equal(await home.getByText(copies.ko.reviewed.clinic, { exact: true }).isVisible(), true);
+    assert.equal(await home.getByText(copies.ko.ui.clinicReading, { exact: true }).isVisible(), true);
+    assert.equal(await home.locator('[data-copy-key="ui.clinicReading"][data-review="pending"]').count(), 1);
     assert.equal(await home.getByText(copies.ko.ui.doctorOnline, { exact: true }).isVisible(), true);
     assert.equal(await home.locator(".hero .primary").count(), 1);
     assert.equal(await home.locator("img").count(), 0);
@@ -210,6 +240,11 @@ async function checkCopyAndAccessibility() {
     assert.equal(await home.locator("[data-cart-badge]").getAttribute("aria-label"), `${copies.ko.ui.cartCount}: 0`);
     const pendingText = await home.locator('[data-review="pending"]').allTextContents();
     assert.ok(pendingText.some(text => text.includes(copies.ko.reviewed.importNotice)));
+    const card = home.locator(".product-card");
+    assert.ok((await card.innerText()).includes(copies.ko.ui.noticeSummary));
+    assert.ok((await card.innerText()).includes(copies.ko.ui.trust1));
+    assert.equal(await card.locator(`a[href="/notice/"]`).count(), 1);
+    assert.ok(Math.abs(parseFloat(await card.locator(".price").evaluate(node => getComputedStyle(node).fontSize)) - 24) <= 1);
     const controls = home.locator(".primary, .lang-link, .cart-link");
     for (const control of await controls.all()) assert.ok((await control.boundingBox()).height >= 48);
     assert.deepEqual(home.runtimeErrors, []);
@@ -237,10 +272,42 @@ async function checkCopyAndAccessibility() {
   log("S1 empty sticky bar and badge label, pending legal price link, clinic first view, controls, and text contrast passed");
 }
 
+async function checkRevisedPagesAndFallback() {
+  const context = await createContext({ viewport: { width: 390, height: 844 } });
+  try {
+    for (const [lang, prefix] of [["ko", ""], ["ja", "/ja"]]) {
+      const copy = copies[lang];
+      const privacy = await open(context, `${prefix}/privacy/`);
+      assert.equal((await privacy.locator(".placeholder").innerText()).trim(), copy.ui.privacyIntro);
+      assert.equal(await privacy.locator('.placeholder [data-review="pending"]').count(), 1);
+      await privacy.close();
+      const guide = await open(context, `${prefix}/guide/`);
+      assert.ok((await guide.locator("body").innerText()).includes(copy.ui.scheduleBody));
+      if (lang === "ko") assert.deepEqual(await guide.locator(".line-list li").allTextContents(), copy.ui.lineSteps);
+      await guide.close();
+    }
+  } finally { await context.close(); }
+
+  for (const [lang, route] of [["ko", "/"], ["ja", "/ja/"]]) {
+    const context = await createContext({ viewport: { width: 390, height: 844 } }, {
+      [`/i18n/${lang}.json`]: { status: 500, body: "load failed" }
+    });
+    try {
+      const page = await context.newPage();
+      await page.goto(`${origin}${route}`);
+      await page.waitForSelector('#app[data-ready="error"]');
+      const line = page.locator('main p[data-review="pending"]');
+      assert.equal((await line.textContent()).trim(), copies[lang].ui.loadError);
+      assert.equal(await line.evaluate(node => Boolean(node.nextElementSibling?.matches("a.email"))), true);
+    } finally { await context.close(); }
+  }
+  log("Revised placeholders, schedule/LINE guide copy, and bilingual load-failure guidance passed");
+}
+
 async function capture() {
   fs.mkdirSync(shots, { recursive: true });
   for (const [name, route] of [["ko-s1", "/"], ["ko-s2", "/mounjaro/"], ["ko-s3", "/cart/"], ["ko-s4", "/confirm/"], ["ja-s1", "/ja/"]]) {
-    const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
+    const context = await createContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
     try {
       if (name === "ko-s3" || name === "ko-s4") await context.addInitScript(() => {
         localStorage.setItem("tabikuri-request-v2", JSON.stringify({ lines: [{ dose: "2.5mg", pens: 4 }, { dose: "5mg", pens: 12 }], expiresAt: Date.now() + 86400000 }));
@@ -260,13 +327,13 @@ async function capture() {
 (async () => {
   try {
     execFileSync(process.execPath, [path.join(__dirname, "build.cjs")], { cwd: repo, stdio: "inherit" });
-    await startServer();
     browser = await chromium.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: true });
     await checkAllPages();
     await checkRequestFlow();
     await checkStorageFallback();
     await checkConfiguredLine();
     await checkCopyAndAccessibility();
+    await checkRevisedPagesAndFallback();
     await capture();
     fs.mkdirSync(shots, { recursive: true });
     fs.writeFileSync(path.join(shots, "verification.json"), JSON.stringify({ passed: true, verifiedAt: new Date().toISOString(), checks: results }, null, 2) + "\n");
@@ -275,6 +342,5 @@ async function capture() {
     process.exitCode = 1;
   } finally {
     if (browser) await browser.close();
-    if (server) await new Promise(resolve => server.close(resolve));
   }
 })();

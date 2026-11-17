@@ -112,20 +112,22 @@
 
     function bottomBar() {
       const state = cart.snapshot();
-      const destination = state.count ? href("s3") : href("s2");
-      const label = state.count ? ui("goCart") : escape(copy.ui.priceView);
+      if (!state.count && page === "s2") return "";
+      const onCart = page === "s3" && state.count;
+      const destination = onCart ? href("s4") : state.count ? href("s3") : href("s2");
+      const label = onCart ? ui("reserve") : state.count ? ui("goCart") : escape(copy.ui.priceView);
       if (!state.count && page === "s1") return `<div class="bottom-bar"><div class="bottom-bar-inner bottom-bar-empty"><a class="primary" href="${destination}" data-event="bottom-action">${label}</a></div></div>`;
       return `<div class="bottom-bar"><div class="bottom-bar-inner"><div><div class="bar-label">${ui("fee")} · ${state.count}${escape(copy.ui.requestsUnit)}</div><div class="bar-price">${number(state.total)}${unit}</div></div><a class="primary" href="${destination}" data-event="bottom-action">${label}</a></div></div>`;
     }
 
     function home() {
       const first = prices[0];
-      return `<main id="main"><section class="section hero"><div class="clinic-name" lang="ja">${escape(copy.reviewed.clinic)}</div><div class="eyebrow">${ui("clinicEyebrow")}</div><h1>${escape(copy.reviewed.heroTitle)}</h1><p class="doctor-line">${ui("doctorOnline")}</p><p class="hero-copy">${escape(copy.reviewed.heroBody)}</p><ul class="trust-list"><li>${escape(copy.ui.trust1)}</li><li>${escape(copy.ui.trust2)}</li><li>${escape(copy.ui.trust3)}</li></ul><a class="primary" href="${href("s2")}" data-event="view-prices">${escape(copy.ui.priceView)} ${icon("arrow")}</a></section>
+      return `<main id="main"><section class="section hero"><div class="clinic-name"><span lang="ja">${escape(copy.reviewed.clinic)}</span>${lang === "ko" ? ui("clinicReading", "small", ' lang="ko"') : ""}</div><div class="eyebrow">${ui("clinicEyebrow")}</div><h1>${escape(copy.reviewed.heroTitle)}</h1><p class="doctor-line">${ui("doctorOnline")}</p><p class="hero-copy">${escape(copy.reviewed.heroBody)}</p><ul class="trust-list"><li>${escape(copy.ui.trust1)}</li><li>${escape(copy.ui.trust2)}</li><li>${escape(copy.ui.trust3)}</li></ul><a class="primary" href="${href("s2")}" data-event="view-prices">${escape(copy.ui.priceView)} ${icon("arrow")}</a></section>
         <section class="section"><h2>${escape(copy.reviewed.servicesTitle)}</h2><ul class="service-list">${copy.reviewed.services.map(item => `<li class="service-card"><h3>${escape(item.title)}</h3><p>${escape(item.body)}</p></li>`).join("")}</ul></section>
-        <section class="section soft"><h2>${ui("catalogTitle")}</h2><a class="product-card" href="${href("s2")}" data-event="view-product">${doseArt()}<h3>${escape(copy.ui.product)}</h3><p class="subtle">${escape(copy.ui.doseRange)}</p><p>${escape(first[0])} · 4${escape(copy.ui.pens)} ${money(first[1])}</p><p class="subtle">${escape(copy.ui.included)}</p></a></section>
+        <section class="section soft"><h2>${ui("catalogTitle")}</h2><article class="product-card">${doseArt()}<h3><a class="product-link" href="${href("s2")}" data-event="view-product">${escape(copy.ui.product)}</a></h3><p class="subtle">${escape(copy.ui.doseRange)}</p><p>${escape(first[0])} · 4${escape(copy.ui.pens)} ${money(first[1])}</p><p class="subtle">${escape(copy.ui.included)}</p>${ui("trust1", "p", ' class="product-assurance"')}${ui("noticeSummary", "p", ' class="product-notice"')}<a href="${href("s6")}">${ui("noticeLink")}</a></article></section>
         <section class="section"><h2>${escape(copy.reviewed.flowTitle)}</h2><ol class="flow-list">${copy.reviewed.flow.map(item => `<li>${escape(item)}</li>`).join("")}</ol><p><a href="${href("s5")}">${escape(copy.ui.moreGuide)}</a></p></section>
         <section class="section">${importNotice()}${medical()}</section>
-        <section class="section"><div class="contact-card"><h2>${escape(copy.reviewed.contactTitle)}</h2><p>${escape(copy.reviewed.contactBody)}</p><a class="email" href="mailto:${escape(copy.reviewed.email)}">${escape(copy.reviewed.email)}</a></div></section></main>${bottomBar()}`;
+        <section class="section"><div class="contact-card"><h2>${escape(copy.reviewed.contactTitle)}</h2>${config.LINE_ADD_URL ? "" : `<p>${escape(copy.reviewed.contactBody)}</p>`}<a class="email" href="mailto:${escape(copy.reviewed.email)}">${escape(copy.reviewed.email)}</a></div></section></main>${bottomBar()}`;
     }
 
     function product() {
@@ -164,7 +166,8 @@
       const lineAction = config.LINE_ADD_URL
         ? `<button class="primary" id="line-button" type="button" data-event="line-reservation"${attr("ui.lineButton")} disabled>${escape(copy.ui.lineButton)}</button>`
         : `<div class="contact-card" id="line-panel"${attr("ui.readyHelp")}><p>${escape(copy.ui.readyHelp)}</p><a class="email" href="mailto:${escape(copy.reviewed.email)}">${escape(copy.reviewed.email)}</a><p><a href="${href("s5")}">${escape(copy.ui.lineGuideTitle)}</a></p></div>`;
-      return `<main id="main"><section class="section"><h1>${escape(copy.meta.s4)}</h1><h2>${escape(copy.ui.summary)}</h2>${summaryLines(state)}<p><a href="${href("s3")}">${escape(copy.ui.edit)}</a></p>${ui("handoff", "p", ' class="subtle"')}</section>
+      const handoff = config.LINE_ADD_URL ? ui("handoff", "p", ' class="subtle"') : "";
+      return `<main id="main"><section class="section"><h1>${escape(copy.meta.s4)}</h1><h2>${escape(copy.ui.summary)}</h2>${summaryLines(state)}<p><a href="${href("s3")}">${escape(copy.ui.edit)}</a></p>${handoff}</section>
         <section class="section soft"><h2>${escape(copy.ui.finalTitle)}</h2><dl class="fact-list" data-final-facts>${facts.map(fact => `<div><dt>${escape(fact[0])}</dt><dd>${factValue(fact)}</dd></div>`).join("")}</dl></section>
         <section class="section">${medical()}<h2>${escape(copy.ui.agreementTitle)}</h2><div class="agreements">${[1,2,3,4].map(index => `<label class="check"${attr(`ui.agreement${index}`)}><input type="checkbox" required data-agreement><span>${escape(copy.ui[`agreement${index}`])}</span></label>`).join("")}</div>${requiredNotices()}${lineAction}</section></main>`;
     }
@@ -184,7 +187,7 @@
     function placeholder(kind) {
       const intro = kind === "privacy" ? "privacyIntro" : "termsIntro";
       const title = kind === "privacy" ? copy.meta.s8 : copy.meta.s9;
-      return `<main id="main"><section class="section"><h1>${escape(title)}</h1><div class="placeholder" data-review="pending"><div>${ui("placeholder", "h2")}${ui(intro, "p")}</div></div></section></main>`;
+      return `<main id="main"><section class="section"><h1>${escape(title)}</h1><div class="placeholder" data-review="pending">${ui(intro, "p")}</div></section></main>`;
     }
 
     function notFound() {
@@ -208,13 +211,21 @@
 
     function refreshRequestNavigation() {
       const state = cart.snapshot();
+      if (state.volatile) {
+        const current = new URL(location.href);
+        if (state.count) current.searchParams.set("r", cart.requestCode());
+        else current.searchParams.delete("r");
+        history.replaceState(history.state, "", `${current.pathname}${current.search}${current.hash}`.replace(/%2C/gi, ","));
+      }
       const badge = root.querySelector("[data-cart-badge]");
       if (badge) {
         badge.textContent = state.count;
         badge.setAttribute("aria-label", `${copy.ui.cartCount}: ${state.count}`);
       }
       const currentBar = root.querySelector(".bottom-bar");
-      if (currentBar) currentBar.outerHTML = bottomBar();
+      const nextBar = bottomBar();
+      if (currentBar) currentBar.outerHTML = nextBar;
+      else if (nextBar) root.querySelector(".shell").insertAdjacentHTML("beforeend", nextBar);
       root.querySelectorAll('a[href^="/"]').forEach(anchor => {
         const url = new URL(anchor.href, location.origin);
         if (state.volatile && state.count) url.searchParams.set("r", cart.requestCode());
@@ -257,7 +268,7 @@
         root.querySelector("[data-close-sheet]").addEventListener("click", () => document.querySelector("#added-sheet").close());
         update();
       }
-      if (page === "s3") root.querySelectorAll("[data-remove]").forEach(button => button.addEventListener("click", () => { cart.remove(button.dataset.remove); render(); }));
+      if (page === "s3") root.querySelectorAll("[data-remove]").forEach(button => button.addEventListener("click", () => { cart.remove(button.dataset.remove); refreshRequestNavigation(); render(); }));
       if (page === "s4") {
         const checks = [...root.querySelectorAll("[data-agreement]")];
         const lineButton = root.querySelector("#line-button");
@@ -278,7 +289,8 @@
     });
     render();
   } catch (error) {
-    root.innerHTML = '<div class="shell"><main class="section"><a class="email" href="mailto:yamanashi-zaitaku@zoen-tech.co.jp">yamanashi-zaitaku@zoen-tech.co.jp</a></main></div>';
+    const loadError = lang === "ko" ? "페이지를 불러오지 못했습니다. 아래 이메일로 문의해 주세요." : "ページを読み込めませんでした。下記のメールアドレスへお問い合わせください。";
+    root.innerHTML = `<div class="shell"><main class="section"><p data-review="pending">${loadError}</p><a class="email" href="mailto:yamanashi-zaitaku@zoen-tech.co.jp">yamanashi-zaitaku@zoen-tech.co.jp</a></main></div>`;
     root.dataset.ready = "error";
     root.setAttribute("aria-busy", "false");
     console.error(error);

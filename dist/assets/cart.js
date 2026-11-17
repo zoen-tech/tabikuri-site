@@ -89,9 +89,9 @@
     }
 
     function add(dose, pens) {
-      const current = state.lines.find(line => line.dose === dose);
       const next = preview(dose, pens);
       if (!next) return { ok: false, reason: "selection" };
+      const current = state.lines.find(line => line.dose === dose);
       state = { lines: next.lines, expiresAt: now() + TTL };
       persist();
       return { ok: true, replaced: Boolean(current && current.pens !== pens), state: snapshot() };

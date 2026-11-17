@@ -100,6 +100,17 @@ test("stored request expires after seven days and corrupt state recovers", () =>
   }
 });
 
+test("adding after expiry is treated as a new line instead of a replacement", () => {
+  let clock = 100;
+  const cart = create(options({ now: () => clock }));
+  cart.add("2.5mg", 4);
+  clock += TTL;
+  const addition = cart.add("2.5mg", 12);
+  assert.equal(addition.ok, true);
+  assert.equal(addition.replaced, false);
+  assert.equal(addition.state.lines[0].pens, 12);
+});
+
 test("unavailable storage retains an in-memory request", () => {
   for (const storage of [null, { getItem() { throw new Error("denied"); } }, { getItem() { return null; }, setItem() { throw new Error("quota"); } }]) {
     const cart = create(options({ storage }));
@@ -157,6 +168,23 @@ test("new and revised copy is review-marked and Korean selector copy uses 합니
     assert.ok(ko.pending.includes(key), key);
     assert.ok(ko.ui[key.slice(3)], key);
   }
+  assert.equal(ko.ui.finalCancel, "결제 완료 전에는 취소 수수료가 없습니다. 결제 완료 후에는 의약품의 품질·안전 관리상 고객 사정에 의한 취소·반품·환불이 불가합니다. 오배송·파손 등 당원에 원인이 있는 경우 도착 후 7일 이내에 이메일로 연락해 주세요. 당원 부담으로 교환 또는 환불합니다.");
+  assert.equal(ko.ui.handoff, "LINE 예약 화면에서 희망 용량·수량을 한 번 더 선택해 주세요. 용량을 두 가지 이상 신청하신 경우 문진표의 기재란에 모두 적어 주세요.");
+  assert.equal(ja.ui.handoff, "LINEの予約画面で、ご希望の容量・本数をもう一度お選びください。2種類以上の容量をご希望の場合は、問診票の記入欄にすべてご記入ください。");
+  assert.equal(ko.ui.scheduleBody, "입국 전에 온라인 진료를 받아 두시면 일본에 머무는 동안 숙소에서 받으실 수 있습니다. 수령일은 진료일로부터 4일 이후로 지정해 주세요.");
+  assert.equal(ja.ui.scheduleBody, "入国前にオンライン診療を受けておくと、日本滞在中に宿泊先でお受け取りいただけます。受取日は診察日から4日以上先をご指定ください。");
+  assert.deepEqual(ko.ui.lineSteps, ["LINE 앱 설치", "타비 클리닉을 친구로 추가", "LINE에서 진료 예약·문진표 작성"]);
+  assert.equal(ko.ui.memoryOnly, "이 브라우저에서는 신청 내용이 저장되지 않습니다. 창을 닫지 말고 진행해 주세요.");
+  assert.equal(ja.ui.memoryOnly, "このブラウザでは希望内容が保存されません。画面を閉じずにお進みください。");
+  assert.equal(ko.ui.clinicReading, "야마나시 재택 재활 클리닉");
+  for (const copy of [ko, ja]) {
+    assert.equal(copy.ui.privacyIntro, copy.ui.placeholder);
+    assert.equal(copy.ui.termsIntro, copy.ui.placeholder);
+    for (const key of ["ui.handoff", "ui.scheduleBody", "ui.lineSteps", "ui.privacyIntro", "ui.termsIntro", "ui.placeholder", "ui.memoryOnly", "ui.loadError"]) {
+      assert.ok(copy.pending.includes(key), `${copy.langName} ${key}`);
+    }
+  }
+  assert.ok(ko.pending.includes("ui.clinicReading"));
 });
 
 test("app source keeps required notices adjacent to S3/S4 actions and uses the required LINE code formula", () => {
@@ -165,6 +193,9 @@ test("app source keeps required notices adjacent to S3/S4 actions and uses the r
   assert.match(app, /\$\{requiredNotices\(\)\}\$\{lineAction\}/);
   assert.match(app, /String\(Math\.round\(parseFloat\(line\.dose\) \* 10\)\)\.padStart\(3, "0"\)/);
   assert.match(app, /aria-label="\$\{escape\(copy\.ui\.cartCount\)\}: \$\{state\.count\}"/);
+  assert.match(app, /history\.replaceState\(history\.state/);
+  assert.match(app, /const handoff = config\.LINE_ADD_URL \? ui\("handoff"/);
+  assert.match(app, /<p data-review="pending">\$\{loadError\}<\/p><a class="email"/);
 });
 
 test("price values are defined only in root prices.js and its generated copy", () => {
