@@ -87,7 +87,7 @@
         <a href="${href("s8")}">${escape(copy.meta.s8)}</a>
         <a href="${href("s9")}">${escape(copy.meta.s9)}</a>
       </nav>${contact}
-      <div lang="ja">${copy.reviewed.footerHtml}</div></footer>`;
+      <div lang="ja"${attr("reviewed.footerHtml")}>${copy.reviewed.footerHtml}</div></footer>`;
     }
 
     function medical(open = false) {
@@ -122,8 +122,8 @@
 
     function home() {
       const first = prices[0];
-      return `<main id="main"><section class="section hero"><div class="clinic-name"><span lang="ja">${escape(copy.reviewed.clinic)}</span>${lang === "ko" ? ui("clinicReading", "small", ' lang="ko"') : ""}</div><div class="eyebrow">${ui("clinicEyebrow")}</div><h1>${escape(copy.reviewed.heroTitle)}</h1><p class="doctor-line">${ui("doctorOnline")}</p><p class="hero-copy">${escape(copy.reviewed.heroBody)}</p><ul class="trust-list"><li>${escape(copy.ui.trust1)}</li><li>${escape(copy.ui.trust2)}</li><li>${escape(copy.ui.trust3)}</li></ul><a class="primary" href="${href("s2")}" data-event="view-prices">${escape(copy.ui.priceView)} ${icon("arrow")}</a></section>
-        <section class="section"><h2>${escape(copy.reviewed.servicesTitle)}</h2><ul class="service-list">${copy.reviewed.services.map(item => `<li class="service-card"><h3>${escape(item.title)}</h3><p>${escape(item.body)}</p></li>`).join("")}</ul></section>
+      return `<main id="main"><section class="section hero"><div class="clinic-name">${escape(brand)}</div><div class="eyebrow">${ui("clinicEyebrow")}</div><h1>${escape(copy.reviewed.heroTitle)}</h1><p class="doctor-line">${ui("doctorOnline")}</p><p class="hero-copy">${escape(copy.reviewed.heroBody)}</p><ul class="trust-list"><li>${escape(copy.ui.trust1)}</li><li>${escape(copy.ui.trust2)}</li><li>${escape(copy.ui.trust3)}</li></ul><a class="primary" href="${href("s2")}" data-event="view-prices">${escape(copy.ui.priceView)} ${icon("arrow")}</a></section>
+        <section class="section"><h2>${escape(copy.reviewed.servicesTitle)}</h2><ul class="service-list">${copy.reviewed.services.map((item, index) => `<li class="service-card"><h3>${escape(item.title)}</h3><p${attr(`reviewed.services.${index}.body`)}>${escape(item.body)}</p></li>`).join("")}</ul></section>
         <section class="section soft"><h2>${ui("catalogTitle")}</h2><article class="product-card">${doseArt()}<h3><a class="product-link" href="${href("s2")}" data-event="view-product">${escape(copy.ui.product)}</a></h3><p class="subtle">${escape(copy.ui.doseRange)}</p><p>${escape(first[0])} · 4${escape(copy.ui.pens)} ${money(first[1])}</p><p class="subtle">${escape(copy.ui.included)}</p>${ui("trust1", "p", ' class="product-assurance"')}${ui("noticeSummary", "p", ' class="product-notice"')}<a href="${href("s6")}">${ui("noticeLink")}</a></article></section>
         <section class="section"><h2>${escape(copy.reviewed.flowTitle)}</h2><ol class="flow-list">${copy.reviewed.flow.map(item => `<li>${escape(item)}</li>`).join("")}</ol><p><a href="${href("s5")}">${escape(copy.ui.moreGuide)}</a></p></section>
         <section class="section">${importNotice()}${medical()}</section>

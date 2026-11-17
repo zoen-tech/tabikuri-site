@@ -229,9 +229,12 @@ async function checkCopyAndAccessibility() {
     const home = await open(context, "/");
     const heroBox = await home.locator(".hero").boundingBox();
     assert.ok(heroBox.y + heroBox.height <= 844, "first view hero fits the mobile viewport");
-    assert.equal(await home.getByText(copies.ko.reviewed.clinic, { exact: true }).isVisible(), true);
-    assert.equal(await home.getByText(copies.ko.ui.clinicReading, { exact: true }).isVisible(), true);
-    assert.equal(await home.locator('[data-copy-key="ui.clinicReading"][data-review="pending"]').count(), 1);
+    assert.equal((await home.locator(".clinic-name").textContent()).trim(), "타비 클리닉");
+    assert.equal((await home.locator(".hero").innerText()).includes("山梨在宅リハビリクリニック"), false);
+    assert.equal((await home.locator(".service-list").innerText()).includes("山梨在宅リハビリクリニック"), false);
+    assert.equal(await home.locator('[data-copy-key="ui.doctorOnline"][data-review="pending"]').count(), 1);
+    assert.equal(await home.locator('[data-copy-key="reviewed.services.0.body"][data-review="pending"]').count(), 1);
+    assert.equal(await home.locator('[data-copy-key="reviewed.footerHtml"][data-review="pending"]').count(), 1);
     assert.equal(await home.getByText(copies.ko.ui.doctorOnline, { exact: true }).isVisible(), true);
     assert.equal(await home.locator(".hero .primary").count(), 1);
     assert.equal(await home.locator("img").count(), 0);
@@ -269,7 +272,7 @@ async function checkCopyAndAccessibility() {
     const values = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
     assert.ok((values[0] + .05) / (values[1] + .05) >= 4.5, foreground);
   }
-  log("S1 empty sticky bar and badge label, pending legal price link, clinic first view, controls, and text contrast passed");
+  log("S1 empty sticky bar and badge label, partner-only hero/service copy, pending legal price link, controls, and text contrast passed");
 }
 
 async function checkRevisedPagesAndFallback() {

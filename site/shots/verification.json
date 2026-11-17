@@ -1,12 +1,12 @@
 {
   "passed": true,
-  "verifiedAt": "2026-11-17T07:54:42.977Z",
+  "verifiedAt": "2026-11-17T09:43:35.154Z",
   "checks": [
     "S1-S9 and 404 in both languages: noindex, local-only requests, LINE pending guidance, and 360/390/768/1280 layouts passed",
     "S2-S4 flow: sticky refresh, replacement notice, revised actions, adjacent notices, Korean/Japanese final facts, and pending email-only LINE state passed",
     "localStorage and sessionStorage denied: add/remove update the current URL and reload preserves the resulting S2-S4 state",
     "Configured LINE: pending footer/card hidden, enabled button shown, adjacent notices, and M025-style request code passed",
-    "S1 empty sticky bar and badge label, pending legal price link, clinic first view, controls, and text contrast passed",
+    "S1 empty sticky bar and badge label, partner-only hero/service copy, pending legal price link, controls, and text contrast passed",
     "Revised placeholders, schedule/LINE guide copy, and bilingual load-failure guidance passed",
     "390px screenshots saved for Korean S1-S4 and Japanese S1"
   ]

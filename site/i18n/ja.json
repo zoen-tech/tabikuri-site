@@ -14,14 +14,13 @@
     "s404": "ページが見つかりません"
   },
   "reviewed": {
-    "clinic": "山梨在宅リハビリクリニック",
     "heroTitle": "日本滞在中にご利用いただける自由診療のオンライン診療のご案内",
     "heroBody": "日本の医師がオンラインで診察し、処方の可否を判断します。処方された医薬品は日本国内の宿泊先（ホテルなど）へお届けします。",
     "servicesTitle": "サービスのご案内",
     "services": [
       {
         "title": "日本の医師によるオンライン診療",
-        "body": "山梨在宅リハビリクリニックの医師が診察し、処方の可否を判断します。"
+        "body": "日本の提携医療機関の医師が診察し、処方の可否を判断します。"
       },
       {
         "title": "宿泊先へお届け",
@@ -76,7 +75,7 @@
     "contactBody": "LINEでの受付は現在準備中です。開始までのお問い合わせは下記のメールアドレスへお送りください。",
     "email": "yamanashi-zaitaku@zoen-tech.co.jp",
     "noPrescription": "医師の診察の結果、処方できない場合があります。その場合、料金はかかりません。",
-    "footerHtml": "たびクリ（<span lang=\"ko\">타비 클리닉</span>）／診療・販売：山梨在宅リハビリクリニック（院長 鈴木 隆宏）／予約・決済システムの提供：ZOEN-TECH株式会社<br>※本ページは自由診療に関する情報です。医師の診察の結果、処方できない場合があります。<br>© たびクリ",
+    "footerHtml": "たびクリ（<span lang=\"ko\">타비 클리닉</span>）／提携医療機関（診療・販売）：山梨在宅リハビリクリニック（院長 鈴木 隆宏）／予約・決済システムの提供：ZOEN-TECH株式会社<br>※本ページは自由診療に関する情報です。医師の診察の結果、処方できない場合があります。<br>© たびクリ",
     "legalTitle": "特定商取引法に基づく表記",
     "legal": [
       {
@@ -165,7 +164,7 @@
     "requestsUnit": "件",
     "priceView": "料金を見る",
     "clinicEyebrow": "日本の医療機関による自由診療のオンライン診療",
-    "doctorOnline": "日本の医師がオンラインで診察",
+    "doctorOnline": "日本の提携医療機関の医師がオンラインで診察",
     "trust1": "医師が処方の可否を判断",
     "trust2": "日本国内の宿泊先へお届け",
     "trust3": "英文の処方証明書を同梱",
@@ -243,8 +242,11 @@
     "close": "閉じる"
   },
   "pending": [
+    "reviewed.services.0.body",
+    "reviewed.footerHtml",
     "reviewed.importNotice",
     "reviewed.legal.quantity",
+    "ui.doctorOnline",
     "ui.goCart",
     "ui.changed",
     "ui.priceTableLink",

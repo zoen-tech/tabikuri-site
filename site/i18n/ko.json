@@ -14,14 +14,13 @@
     "s404": "페이지를 찾을 수 없습니다"
   },
   "reviewed": {
-    "clinic": "山梨在宅リハビリクリニック",
     "heroTitle": "일본 체류 중 이용할 수 있는 비급여 온라인 진료 안내",
     "heroBody": "일본의 의사가 온라인으로 진료한 후 처방 가능 여부를 판단합니다. 처방된 의약품은 일본 내 숙소(호텔 등)로 보내 드립니다.",
     "servicesTitle": "서비스 안내",
     "services": [
       {
         "title": "일본 의사의 온라인 진료",
-        "body": "山梨在宅リハビリクリニック의 의사가 진료하고 처방 가능 여부를 판단합니다."
+        "body": "일본 제휴 의료기관의 의사가 진료하고 처방 가능 여부를 판단합니다."
       },
       {
         "title": "숙소로 배송",
@@ -76,7 +75,7 @@
     "contactBody": "LINE 접수는 현재 준비 중입니다. 오픈 전 문의는 아래 이메일로 보내 주세요.",
     "email": "yamanashi-zaitaku@zoen-tech.co.jp",
     "noPrescription": "의사의 진료 결과 처방이 어려운 경우가 있으며, 이 경우 요금은 발생하지 않습니다.",
-    "footerHtml": "<span lang=\"ko\">타비 클리닉</span>（たびクリ）／診療・販売：山梨在宅リハビリクリニック（院長 鈴木 隆宏）／予約・決済システムの提供：ZOEN-TECH株式会社<br>※本ページは自由診療に関する情報です。医師の診察の結果、処方できない場合があります。<br>© <span lang=\"ko\">타비 클리닉</span> たびクリ",
+    "footerHtml": "<span lang=\"ko\">타비 클리닉</span>（たびクリ）／提携医療機関（診療・販売）：山梨在宅リハビリクリニック（院長 鈴木 隆宏）／予約・決済システムの提供：ZOEN-TECH株式会社<br>※本ページは自由診療に関する情報です。医師の診察の結果、処方できない場合があります。<br>© <span lang=\"ko\">타비 클리닉</span> たびクリ",
     "legalTitle": "특정상거래에 관한 법률에 따른 표기",
     "legal": [
       {
@@ -164,9 +163,8 @@
     "cartCount": "신청 건수",
     "requestsUnit": "건",
     "priceView": "요금 보기",
-    "clinicReading": "야마나시 재택 재활 클리닉",
     "clinicEyebrow": "일본 의료기관의 비급여 온라인 진료",
-    "doctorOnline": "일본의 의사가 온라인으로 진료",
+    "doctorOnline": "일본 제휴 의료기관의 의사가 온라인으로 진료",
     "trust1": "의사가 처방 여부를 판단",
     "trust2": "일본 내 숙소로 배송",
     "trust3": "영문 처방 증명서 동봉",
@@ -248,10 +246,12 @@
     "close": "닫기"
   },
   "pending": [
+    "reviewed.services.0.body",
+    "reviewed.footerHtml",
     "reviewed.importNotice",
     "reviewed.legal.quantity",
     "ui.cart",
-    "ui.clinicReading",
+    "ui.doctorOnline",
     "ui.add",
     "ui.fee",
     "ui.goCart",

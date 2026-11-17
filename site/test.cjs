@@ -176,7 +176,6 @@ test("new and revised copy is review-marked and Korean selector copy uses 합니
   assert.deepEqual(ko.ui.lineSteps, ["LINE 앱 설치", "타비 클리닉을 친구로 추가", "LINE에서 진료 예약·문진표 작성"]);
   assert.equal(ko.ui.memoryOnly, "이 브라우저에서는 신청 내용이 저장되지 않습니다. 창을 닫지 말고 진행해 주세요.");
   assert.equal(ja.ui.memoryOnly, "このブラウザでは希望内容が保存されません。画面を閉じずにお進みください。");
-  assert.equal(ko.ui.clinicReading, "야마나시 재택 재활 클리닉");
   for (const copy of [ko, ja]) {
     assert.equal(copy.ui.privacyIntro, copy.ui.placeholder);
     assert.equal(copy.ui.termsIntro, copy.ui.placeholder);
@@ -184,7 +183,35 @@ test("new and revised copy is review-marked and Korean selector copy uses 합니
       assert.ok(copy.pending.includes(key), `${copy.langName} ${key}`);
     }
   }
-  assert.ok(ko.pending.includes("ui.clinicReading"));
+  for (const copy of [ko, ja]) {
+    for (const key of ["ui.doctorOnline", "reviewed.services.0.body", "reviewed.footerHtml"]) {
+      assert.ok(copy.pending.includes(key), `${copy.langName} ${key}`);
+    }
+  }
+  assert.equal(ko.ui.doctorOnline, "일본 제휴 의료기관의 의사가 온라인으로 진료");
+  assert.equal(ja.ui.doctorOnline, "日本の提携医療機関の医師がオンラインで診察");
+  assert.equal(ko.reviewed.services[0].body, "일본 제휴 의료기관의 의사가 진료하고 처방 가능 여부를 판단합니다.");
+  assert.equal(ja.reviewed.services[0].body, "日本の提携医療機関の医師が診察し、処方の可否を判断します。");
+  for (const copy of [ko, ja]) {
+    assert.ok(copy.reviewed.footerHtml.includes("提携医療機関（診療・販売）：山梨在宅リハビリクリニック（院長 鈴木 隆宏）"));
+  }
+});
+
+test("partner clinic name is absent from the S1 hero and service cards", () => {
+  const clinicName = "山梨在宅リハビリクリニック";
+  const app = fs.readFileSync(path.join(__dirname, "src/app.js"), "utf8");
+  const homeSource = app.slice(app.indexOf("function home()"), app.indexOf("function product()"));
+  assert.match(homeSource, /<div class="clinic-name">\$\{escape\(brand\)\}<\/div>/);
+  assert.doesNotMatch(homeSource, /copy\.reviewed\.clinic|clinicReading/);
+  for (const copy of Object.values(copies)) {
+    assert.equal("clinic" in copy.reviewed, false);
+    for (const text of [copy.reviewed.heroTitle, copy.reviewed.heroBody, copy.ui.clinicEyebrow, copy.ui.doctorOnline]) {
+      assert.equal(text.includes(clinicName), false, text);
+    }
+    for (const service of copy.reviewed.services) {
+      assert.equal(`${service.title}${service.body}`.includes(clinicName), false, service.title);
+    }
+  }
 });
 
 test("app source keeps required notices adjacent to S3/S4 actions and uses the required LINE code formula", () => {
@@ -223,7 +250,7 @@ test("new site contains no extra stay control, removed sentence, promotional lab
   }
 });
 
-test("reviewed medical, flow, services, footer and unchanged legal rows match current pages", () => {
+test("unchanged reviewed medical, flow, services and legal rows match current pages", () => {
   const koSource = fs.readFileSync(path.join(repo, "index.html"), "utf8");
   const jaSource = fs.readFileSync(path.join(repo, "ja/index.html"), "utf8");
   const plain = html => html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -232,12 +259,11 @@ test("reviewed medical, flow, services, footer and unchanged legal rows match cu
     const copy = copies[lang].reviewed;
     const sourceText = compact(source);
     assert.equal(copy.medical.length, 7);
-    for (const item of [...copy.services, ...copy.medical]) {
+    for (const item of [...copy.services.slice(1), ...copy.medical]) {
       assert.ok(sourceText.includes(compact(item.title)), item.title);
       assert.ok(sourceText.includes(compact(item.body)), item.body.slice(0, 30));
     }
     for (const item of copy.flow) assert.ok(sourceText.includes(compact(item)));
-    assert.ok(sourceText.includes(compact(copy.footerHtml)));
     assert.ok(sourceText.includes(compact(copy.priceNote)));
     for (const item of copy.legal.filter(item => item.key !== "quantity")) {
       assert.ok(source.includes(`<dt>${item.label}</dt><dd>${item.value}</dd>`), item.key);
