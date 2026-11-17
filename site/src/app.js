@@ -80,7 +80,7 @@
     }
 
     function footer() {
-      const contact = config.LINE_ADD_URL ? "" : `<div class="footer-contact"><strong>${escape(copy.reviewed.contactTitle)}</strong><br>${escape(copy.reviewed.contactBody)}<br><a class="email" href="mailto:${escape(copy.reviewed.email)}">${escape(copy.reviewed.email)}</a></div>`;
+      const contact = config.LINE_ADD_URL ? "" : `<div class="footer-contact"><strong>${escape(copy.reviewed.contactTitle)}</strong><br>${reviewed("contactBody", copy.reviewed.contactBody)}</div>`;
       return `<footer class="footer"><nav class="footer-nav" aria-label="${escape(copy.ui.home)}">
         <a href="${href("s5")}">${escape(copy.reviewed.flowTitle)}</a>
         <a href="${href("s6")}">${escape(copy.reviewed.medicalTitle)}</a>
@@ -107,9 +107,9 @@
       return `<div class="dose-art image-fallback" aria-hidden="true" hidden>${prices.map(() => "<span></span>").join("")}</div>`;
     }
 
-    function productImage(dose = "2.5mg", id = "") {
+    function productImage(dose = "2.5mg", id = "", file = `pen-${dose}`) {
       const alt = copy.ui.penAlt.replace("{dose}", dose);
-      return `<div class="product-image-slot" data-product-image${id ? ` id="${id}"` : ""}><img src="/assets/pens/pen-${escape(dose)}.png" alt="${escape(alt)}" width="320" height="180"${attr("ui.penAlt")}>${doseSwatches()}</div>`;
+      return `<div class="product-image-slot" data-product-image${id ? ` id="${id}"` : ""}><img src="/assets/pens/${escape(file)}.png" alt="${escape(alt)}" width="320" height="180"${attr("ui.penAlt")}>${doseSwatches()}</div>`;
     }
 
     function prepareProductImages(scope = root) {
@@ -163,10 +163,10 @@
       const first = prices[0];
       return `<main id="main"><section class="section hero"><div class="clinic-name">${escape(brand)}</div><div class="eyebrow">${ui("clinicEyebrow")}</div><h1>${escape(copy.reviewed.heroTitle)}</h1><p class="doctor-line">${ui("doctorOnline")}</p><p class="hero-copy">${escape(copy.reviewed.heroBody)}</p><ul class="trust-list"><li>${escape(copy.ui.trust1)}</li><li>${escape(copy.ui.trust2)}</li><li${attr("ui.trust3")}>${escape(copy.ui.trust3)}</li></ul><a class="primary" href="${href("s2")}" data-event="view-prices">${escape(copy.ui.priceView)} ${icon("arrow")}</a></section>
         <section class="section"><h2>${escape(copy.reviewed.servicesTitle)}</h2><ul class="service-list">${copy.reviewed.services.map((item, index) => `<li class="service-card"><h3${attr(`reviewed.services.${index}.title`)}>${escape(item.title)}</h3><p${attr(`reviewed.services.${index}.body`)}>${escape(item.body)}</p></li>`).join("")}</ul></section>
-        <section class="section soft"><h2>${ui("catalogTitle")}</h2><article class="product-card">${productImage()}<h3><a class="product-link" href="${href("s2")}" data-event="view-product">${escape(copy.ui.product)}</a></h3><p class="subtle">${escape(copy.ui.doseRange)}</p><p>${escape(first[0])} · 4${escape(copy.ui.pens)} ${money(first[1])}</p><p class="subtle">${escape(copy.ui.included)}</p>${ui("trust1", "p", ' class="product-assurance"')}${ui("noticeSummary", "p", ' class="product-notice"')}<a href="${href("s6")}">${ui("noticeLink")}</a></article></section>
+        <section class="section soft"><h2>${ui("catalogTitle")}</h2><article class="product-card">${productImage("2.5mg · 5mg", "", "pens-main")}<h3><a class="product-link" href="${href("s2")}" data-event="view-product">${escape(copy.ui.product)}</a></h3><p class="subtle">${escape(copy.ui.doseRange)}</p><p>${escape(first[0])} · 4${escape(copy.ui.pens)} ${money(first[1])}</p><p class="subtle">${escape(copy.ui.included)}</p>${ui("trust1", "p", ' class="product-assurance"')}${ui("noticeSummary", "p", ' class="product-notice"')}<a href="${href("s6")}">${ui("noticeLink")}</a></article></section>
         <section class="section"><h2>${escape(copy.reviewed.flowTitle)}</h2><ol class="flow-list">${copy.reviewed.flow.map((item, index) => `<li${attr(`reviewed.flow.${index}`)}>${escape(item)}</li>`).join("")}</ol><p><a href="${href("s5")}">${escape(copy.ui.moreGuide)}</a></p></section>
         <section class="section">${importNotice()}${medical()}</section>
-        <section class="section"><div class="contact-card"><h2>${escape(copy.reviewed.contactTitle)}</h2>${config.LINE_ADD_URL ? "" : `<p>${escape(copy.reviewed.contactBody)}</p>`}<a class="email" href="mailto:${escape(copy.reviewed.email)}">${escape(copy.reviewed.email)}</a></div></section></main>${bottomBar()}`;
+        <section class="section"><div class="contact-card"><h2>${escape(copy.reviewed.contactTitle)}</h2>${config.LINE_ADD_URL ? `<a class="primary" href="${escape(config.LINE_ADD_URL)}">${ui("lineAdd")}</a>` : reviewed("contactBody", copy.reviewed.contactBody, "p")}</div></section></main>${bottomBar()}`;
     }
 
     function product() {
@@ -204,7 +204,7 @@
         : translation ? `<span lang="ja">${value}</span>` : value;
       const lineAction = config.LINE_ADD_URL
         ? `<button class="primary" id="line-button" type="button" data-event="line-reservation"${attr("ui.lineButton")} disabled>${escape(copy.ui.lineButton)}</button>`
-        : `<div class="contact-card" id="line-panel"${attr("ui.readyHelp")}><p>${escape(copy.ui.readyHelp)}</p><a class="email" href="mailto:${escape(copy.reviewed.email)}">${escape(copy.reviewed.email)}</a><p><a href="${href("s5")}">${escape(copy.ui.lineGuideTitle)}</a></p></div>`;
+        : `<div class="contact-card" id="line-panel"${attr("ui.readyHelp")}><p>${escape(copy.ui.readyHelp)}</p><p><a href="${href("s5")}">${escape(copy.ui.lineGuideTitle)}</a></p></div>`;
       const handoff = config.LINE_ADD_URL ? ui("handoff", "p", ' class="subtle"') : "";
       return `<main id="main"><section class="section"><h1>${escape(copy.meta.s4)}</h1><h2>${escape(copy.ui.summary)}</h2>${summaryLines(state)}${breakdownTotals(state.total)}<p><a href="${href("s3")}">${escape(copy.ui.edit)}</a></p>${handoff}</section>
         <section class="section soft"><h2>${escape(copy.ui.finalTitle)}</h2><dl class="fact-list" data-final-facts>${facts.map(fact => `<div><dt>${escape(fact[0])}</dt><dd>${factValue(fact)}</dd></div>`).join("")}</dl></section>
@@ -319,8 +319,7 @@
         const update = () => { lineButton.disabled = !checks.every(input => input.checked); };
         checks.forEach(input => input.addEventListener("change", update));
         lineButton.addEventListener("click", () => {
-          if (config.LINE_ADD_URL) location.href = buildLineURL(cart.snapshot());
-          else { const target = root.querySelector("#line-panel .email"); target.scrollIntoView({ block: "center" }); target.focus(); }
+          location.href = buildLineURL(cart.snapshot());
         });
       }
     }
@@ -332,8 +331,8 @@
     });
     render();
   } catch (error) {
-    const loadError = lang === "ko" ? "페이지를 불러오지 못했습니다. 아래 이메일로 문의해 주세요." : "ページを読み込めませんでした。下記のメールアドレスへお問い合わせください。";
-    root.innerHTML = `<div class="shell"><main class="section"><p data-review="pending">${loadError}</p><a class="email" href="mailto:yamanashi-zaitaku@zoen-tech.co.jp">yamanashi-zaitaku@zoen-tech.co.jp</a></main></div>`;
+    const loadError = lang === "ko" ? "페이지를 불러오지 못했습니다." : "ページを読み込めませんでした。";
+    root.innerHTML = `<div class="shell"><main class="section"><p data-review="pending">${loadError}</p></main></div>`;
     root.dataset.ready = "error";
     root.setAttribute("aria-busy", "false");
     console.error(error);

@@ -72,8 +72,7 @@
       "宿泊先へお薬をお届け・英文処方証明書はPDFでお送りします"
     ],
     "contactTitle": "お問い合わせ・ご予約",
-    "contactBody": "LINEでの受付は現在準備中です。開始までのお問い合わせは下記のメールアドレスへお送りください。",
-    "email": "yamanashi-zaitaku@zoen-tech.co.jp",
+    "contactBody": "LINEでの受付は現在準備中です。開始までお待ちください。",
     "noPrescription": "医師の診察の結果、処方できない場合があります。その場合、料金はかかりません。",
     "footerHtml": "たびクリ（<span lang=\"ko\">타비 클리닉</span>）／提携医療機関（診療・販売）：山梨在宅リハビリクリニック（院長 鈴木 隆宏）／予約・決済システムの提供：ZOEN-TECH株式会社<br>※本ページは自由診療に関する情報です。医師の診察の結果、処方できない場合があります。<br>© たびクリ",
     "legalTitle": "特定商取引法に基づく表記",
@@ -96,12 +95,7 @@
       {
         "key": "phone",
         "label": "電話番号",
-        "value": "050-5292-7882<br>※診察中はお電話に出られない場合があります。メールでもお問い合わせを承ります"
-      },
-      {
-        "key": "email",
-        "label": "メールアドレス",
-        "value": "yamanashi-zaitaku@zoen-tech.co.jp"
+        "value": "050-5292-7882<br>※診察中はお電話に出られない場合があります。LINEでもお問い合わせを承ります"
       },
       {
         "key": "service",
@@ -222,6 +216,7 @@
     "agreement3": "受取日は診察日から4日以上先になること、お届け先は日本国内の宿泊先・滞在先に限ることを理解しました。",
     "agreement4": "自分で使う目的です。",
     "lineButton": "LINEで診察を予約する",
+    "lineAdd": "LINEで友だち追加",
     "ready": "準備中",
     "readyHelp": "LINE受付の開始まではメールでお問い合わせください。",
     "handoff": "LINEの予約画面で、ご希望の容量・本数をもう一度お選びください。2種類以上の容量をご希望の場合は、問診票の記入欄にすべてご記入ください。",
@@ -243,7 +238,7 @@
     "notFound": "お探しのページは見つかりませんでした。",
     "memoryOnly": "このブラウザでは希望内容が保存されません。画面を閉じずにお進みください。",
     "noScript": "画面をご利用になるにはJavaScriptを有効にしてください。",
-    "loadError": "ページを読み込めませんでした。下記のメールアドレスへお問い合わせください。",
+    "loadError": "ページを読み込めませんでした。",
     "close": "閉じる"
   },
   "pending": [
@@ -280,6 +275,9 @@
     "ui.placeholder",
     "ui.memoryOnly",
     "ui.loadError",
-    "ui.noScript"
+    "ui.noScript",
+    "reviewed.contactBody",
+    "reviewed.legal.phone",
+    "ui.lineAdd"
   ]
 }

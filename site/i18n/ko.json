@@ -72,8 +72,7 @@
       "숙소로 의약품 배송 · 영문 처방 증명서는 PDF로 송부"
     ],
     "contactTitle": "문의·예약",
-    "contactBody": "LINE 접수는 현재 준비 중입니다. 오픈 전 문의는 아래 이메일로 보내 주세요.",
-    "email": "yamanashi-zaitaku@zoen-tech.co.jp",
+    "contactBody": "LINE 접수는 현재 준비 중입니다. 시작될 때까지 기다려 주세요.",
     "noPrescription": "의사의 진료 결과 처방이 어려운 경우가 있으며, 이 경우 요금은 발생하지 않습니다.",
     "footerHtml": "<span lang=\"ko\">타비 클리닉</span>（たびクリ）／提携医療機関（診療・販売）：山梨在宅リハビリクリニック（院長 鈴木 隆宏）／予約・決済システムの提供：ZOEN-TECH株式会社<br>※本ページは自由診療に関する情報です。医師の診察の結果、処方できない場合があります。<br>© <span lang=\"ko\">타비 클리닉</span> たびクリ",
     "legalTitle": "특정상거래에 관한 법률에 따른 표기",
@@ -96,12 +95,7 @@
       {
         "key": "phone",
         "label": "電話番号",
-        "value": "050-5292-7882<br>※診察中はお電話に出られない場合があります。メールでもお問い合わせを承ります"
-      },
-      {
-        "key": "email",
-        "label": "メールアドレス",
-        "value": "yamanashi-zaitaku@zoen-tech.co.jp"
+        "value": "050-5292-7882<br>※診察中はお電話に出られない場合があります。LINEでもお問い合わせを承ります"
       },
       {
         "key": "service",
@@ -226,6 +220,7 @@
     "agreement3": "수령일은 진료일로부터 4일 이후이며, 배송지는 일본 내 숙소·체류지로 한정됨을 이해했습니다.",
     "agreement4": "본인이 사용할 목적으로 신청합니다.",
     "lineButton": "LINE으로 진료 예약하기",
+    "lineAdd": "LINE 친구 추가",
     "ready": "준비 중",
     "readyHelp": "LINE 접수 시작 전에는 이메일로 문의해 주세요.",
     "handoff": "LINE 예약 화면에서 희망 용량·수량을 한 번 더 선택해 주세요. 용량을 두 가지 이상 신청하신 경우 문진표의 기재란에 모두 적어 주세요.",
@@ -247,7 +242,7 @@
     "notFound": "요청하신 페이지를 찾을 수 없습니다.",
     "memoryOnly": "이 브라우저에서는 신청 내용이 저장되지 않습니다. 창을 닫지 말고 진행해 주세요.",
     "noScript": "화면을 이용하려면 JavaScript를 활성화해 주세요.",
-    "loadError": "페이지를 불러오지 못했습니다. 아래 이메일로 문의해 주세요.",
+    "loadError": "페이지를 불러오지 못했습니다.",
     "close": "닫기"
   },
   "pending": [
@@ -300,6 +295,9 @@
     "ui.placeholder",
     "ui.memoryOnly",
     "ui.loadError",
-    "ui.noScript"
+    "ui.noScript",
+    "reviewed.contactBody",
+    "reviewed.legal.phone",
+    "ui.lineAdd"
   ]
 }

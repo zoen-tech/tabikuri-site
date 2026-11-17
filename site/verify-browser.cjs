@@ -19,6 +19,16 @@ const log = message => { results.push(message); console.log(message); };
 const numeric = text => Number(text.replace(/[^0-9]/g, ""));
 const mime = file => ({ ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json; charset=utf-8" }[path.extname(file)] || "application/octet-stream");
 
+function checkNoEmailInDist(directory = dist) {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory()) checkNoEmailInDist(file);
+    else if (/\.(?:html|js|json)$/.test(entry.name)) {
+      assert.doesNotMatch(fs.readFileSync(file, "utf8"), /@|mailto:/i, path.relative(repo, file));
+    }
+  }
+}
+
 async function createContext(options, virtualFiles = {}) {
   const context = await browser.newContext(options);
   await context.route(`${origin}/**`, async route => {
@@ -63,8 +73,20 @@ async function checkAllPages() {
       const page = await open(context, url);
       const copy = copies[lang];
       assert.equal(await page.locator(`html[lang="${lang}"]`).count(), 1);
-      assert.equal(await page.locator(`a[href="mailto:${copy.reviewed.email}"]`).count() > 0, true, `${url}: email`);
+      assert.doesNotMatch(await page.content(), /@|mailto:/i, `${url}: no email contact`);
       assert.ok((await page.locator("body").innerText()).includes(copy.reviewed.contactBody), `${url}: pending LINE guidance`);
+      assert.equal((await page.locator('.footer-contact [data-copy-key="reviewed.contactBody"][data-review="pending"]').textContent()).trim(), copy.reviewed.contactBody);
+      if (route === "") {
+        assert.equal((await page.locator('.contact-card [data-copy-key="reviewed.contactBody"][data-review="pending"]').textContent()).trim(), copy.reviewed.contactBody);
+        assert.equal(await page.locator(".contact-card a").count(), 0);
+      }
+      if (route === "legal/") {
+        assert.equal(copy.reviewed.legal.some(row => row.key === "email"), false);
+        assert.deepEqual(await page.locator(".law dt").allTextContents(), copy.reviewed.legal.map(row => row.label));
+        assert.doesNotMatch(await page.locator(".law").innerText(), /メールアドレス|@/);
+        const phone = page.locator('.law [data-copy-key="reviewed.legal.phone"][data-review="pending"]');
+        assert.match(await phone.innerText(), /LINEでもお問い合わせを承ります/);
+      }
       assert.doesNotMatch(await page.locator("body").innerText(), /동봉|함께 보내|의약품과 영문|お付けします|同梱|お薬と英文/, `${url}: certificate is not enclosed`);
       assert.deepEqual(page.runtimeErrors, [], `${url}: runtime errors`);
       for (const width of widths) {
@@ -156,7 +178,11 @@ async function checkRequestFlow() {
     assert.equal(await page.locator('[data-final-facts] .fact-original[lang="ja"]').count(), 4);
     assert.equal(await page.locator("[data-agreement]").count(), 4);
     assert.equal(await page.locator("#line-button").count(), 0);
-    assert.equal(await page.locator('#line-panel[data-review="pending"] .email').count(), 1);
+    assert.ok((await page.locator('#line-panel[data-review="pending"]').innerText()).includes(copies.ko.ui.readyHelp));
+    assert.equal(await page.locator("#line-panel a").count(), 1);
+    assert.equal(await page.locator("#line-panel a").getAttribute("href"), "/guide/");
+    assert.equal((await page.locator("#line-panel a").textContent()).trim(), copies.ko.ui.lineGuideTitle);
+    assert.doesNotMatch(await page.content(), /@|mailto:/i);
     assert.equal((await page.locator("body").innerText()).includes(copies.ko.ui.handoff), false);
     assert.ok((await page.locator("body").innerText()).includes(copies.ko.ui.finalCancel));
     for (const width of [360, 390]) {
@@ -165,7 +191,7 @@ async function checkRequestFlow() {
     }
     assert.deepEqual(page.runtimeErrors, []);
   } finally { await context.close(); }
-  log("S2-S4 flow: sticky refresh, replacement notice, revised actions, adjacent notices, Korean/Japanese final facts, and pending email-only LINE state passed");
+  log("S2-S4 flow: sticky refresh, replacement notice, revised actions, adjacent notices, Korean/Japanese final facts, and pending LINE guide state passed");
 }
 
 async function checkStorageFallback() {
@@ -234,11 +260,21 @@ async function checkConfiguredLine() {
     await Promise.all([page.waitForURL("**/line-add?request=*"), page.locator("#line-button").click()]);
     assert.equal(new URL(page.url()).searchParams.get("request"), "M050-12,M125-4");
     assert.deepEqual(page.runtimeErrors, []);
-    const home = await open(context, "/");
-    assert.equal((await home.locator("body").innerText()).includes(copies.ko.reviewed.contactBody), false);
-    await home.close();
+    for (const [lang, route] of [["ko", "/"], ["ja", "/ja/"]]) {
+      const home = await open(context, route);
+      assert.equal((await home.locator("body").innerText()).includes(copies[lang].reviewed.contactBody), false);
+      assert.equal(await home.locator(".footer-contact").count(), 0);
+      const lineAdd = home.locator(".contact-card a.primary");
+      assert.equal(await lineAdd.count(), 1);
+      assert.equal(await lineAdd.getAttribute("href"), `${origin}/line-add`);
+      assert.equal((await lineAdd.textContent()).trim(), copies[lang].ui.lineAdd);
+      assert.equal(await lineAdd.locator('[data-copy-key="ui.lineAdd"][data-review="pending"]').count(), 1);
+      assert.doesNotMatch(await home.content(), /@|mailto:/i);
+      assert.deepEqual(home.runtimeErrors, []);
+      await home.close();
+    }
   } finally { await context.close(); }
-  log("Configured LINE: pending footer/card hidden, enabled button shown, adjacent notices, and M025-style request code passed");
+  log("Configured LINE: pending text hidden, Korean/Japanese contact add links shown, adjacent notices, and M025-style request code passed");
 }
 
 async function checkCopyAndAccessibility() {
@@ -259,11 +295,11 @@ async function checkCopyAndAccessibility() {
     assert.equal(await home.getByText(copies.ko.ui.doctorOnline, { exact: true }).isVisible(), true);
     assert.equal(await home.locator(".hero .primary").count(), 1);
     assert.equal(await home.locator(".product-card [data-product-image] img").count(), 1);
-    assert.equal(await home.locator(".product-card [data-product-image] img").getAttribute("src"), "/assets/pens/pen-2.5mg.png");
-    assert.equal(await home.locator(".product-card [data-product-image] img").getAttribute("alt"), copies.ko.ui.penAlt.replace("{dose}", "2.5mg"));
-    await home.waitForSelector('.product-card [data-product-image][data-image-fallback="true"]');
-    assert.equal(await home.locator(".product-card .image-fallback").isVisible(), true);
-    assert.equal(await home.locator(".product-card .image-fallback span").count(), 6);
+    assert.equal(await home.locator(".product-card [data-product-image] img").getAttribute("src"), "/assets/pens/pens-main.png");
+    assert.equal(await home.locator(".product-card [data-product-image] img").getAttribute("alt"), copies.ko.ui.penAlt.replace("{dose}", "2.5mg · 5mg"));
+    await home.waitForFunction(() => { const img = document.querySelector(".product-card [data-product-image] img"); return img && img.complete && img.naturalWidth > 0; });
+    assert.equal(await home.locator(".product-card [data-product-image] img").isVisible(), true);
+    assert.equal(await home.locator(".product-card .image-fallback").isVisible(), false);
     assert.equal(await home.locator(".bottom-bar .bar-label, .bottom-bar .bar-price").count(), 0);
     assert.equal((await home.locator(".bottom-bar .primary").textContent()).trim(), copies.ko.ui.priceView);
     assert.equal(await home.locator("[data-cart-badge]").getAttribute("aria-label"), `${copies.ko.ui.cartCount}: 0`);
@@ -327,7 +363,8 @@ async function checkRevisedPagesAndFallback() {
       await page.waitForSelector('#app[data-ready="error"]');
       const line = page.locator('main p[data-review="pending"]');
       assert.equal((await line.textContent()).trim(), copies[lang].ui.loadError);
-      assert.equal(await line.evaluate(node => Boolean(node.nextElementSibling?.matches("a.email"))), true);
+      assert.equal(await page.locator("main a").count(), 0);
+      assert.doesNotMatch(await page.content(), /@|mailto:/i);
     } finally { await context.close(); }
   }
   log("Revised placeholders, schedule/LINE guide copy, and bilingual load-failure guidance passed");
@@ -356,6 +393,7 @@ async function capture() {
 (async () => {
   try {
     execFileSync(process.execPath, [path.join(__dirname, "build.cjs")], { cwd: repo, stdio: "inherit" });
+    checkNoEmailInDist();
     browser = await chromium.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: true });
     await checkAllPages();
     await checkRequestFlow();

@@ -43,7 +43,7 @@ function shell(lang, page, route) {
 </head>
 <body data-lang="${lang}" data-page="${page}" data-opposite="${opposite}">
   <div id="app" aria-busy="true"></div>
-  <noscript${publicBuild ? "" : ' data-review="pending"'}>${copy.ui.noScript} <a href="mailto:${copy.reviewed.email}">${copy.reviewed.email}</a></noscript>
+  <noscript${publicBuild ? "" : ' data-review="pending"'}>${copy.ui.noScript}</noscript>
 </body>
 </html>
 `;

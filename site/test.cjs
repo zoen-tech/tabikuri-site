@@ -17,6 +17,37 @@ const memoryStorage = () => {
 };
 const options = extra => ({ prices, storage: memoryStorage(), key: "test", ...extra });
 
+function assertNoEmailInDist(directory = dist) {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory()) assertNoEmailInDist(file);
+    else if (/\.(?:html|js|json)$/.test(entry.name)) {
+      assert.doesNotMatch(fs.readFileSync(file, "utf8"), /@|mailto:/i, path.relative(repo, file));
+    }
+  }
+}
+
+async function renderPage(lang, page, { lineURL = "", loadFailure = false } = {}) {
+  const root = { dataset: {}, innerHTML: "", setAttribute() {}, querySelectorAll: () => [], querySelector: () => null };
+  const storage = memoryStorage();
+  storage.setItem("tabikuri-request-v2", JSON.stringify({ lines: [{ dose: "2.5mg", pens: 4 }], expiresAt: Date.now() + TTL }));
+  const errors = [];
+  const sandbox = {
+    window: { TabikuriCart: { create, COUNTS }, localStorage: storage, addEventListener() {} },
+    document: { body: { dataset: { lang, page } }, querySelector: selector => selector === "#app" ? root : null },
+    location: { search: "" }, URL, URLSearchParams, PRICES: prices,
+    fetch: async () => ({ ok: !loadFailure, json: async () => copies[lang] }),
+    console: { error: error => errors.push(error) }
+  };
+  vm.runInNewContext(fs.readFileSync(path.join(dist, "config.js"), "utf8"), sandbox);
+  sandbox.window.SITE_CONFIG = { ...sandbox.window.SITE_CONFIG, LINE_ADD_URL: lineURL };
+  await vm.runInNewContext(fs.readFileSync(path.join(dist, "assets/app.js"), "utf8"), sandbox);
+  assert.equal(root.dataset.ready, loadFailure ? "error" : "true");
+  assert.equal(errors.length, loadFailure ? 1 : 0);
+  assert.doesNotMatch(root.innerHTML, /@|mailto:/i);
+  return root.innerHTML;
+}
+
 before(() => childProcess.execFileSync(process.execPath, [path.join(__dirname, "build.cjs")], { cwd: repo }));
 
 test("all 24 source prices are selectable without an extra quantity gate", () => {
@@ -201,6 +232,75 @@ test("new and revised copy is review-marked and Korean selector copy uses 합니
   }
 });
 
+test("all dist HTML, JS and JSON omit email addresses and mailto links", () => {
+  assertNoEmailInDist();
+  for (const lang of ["ko", "ja"]) {
+    const html = fs.readFileSync(path.join(dist, ...(lang === "ja" ? ["ja"] : []), "index.html"), "utf8");
+    assert.ok(html.includes(`<noscript data-review="pending">${copies[lang].ui.noScript}</noscript>`));
+    for (const copy of [copies[lang], JSON.parse(fs.readFileSync(path.join(dist, "i18n", `${lang}.json`), "utf8"))]) {
+      assert.equal("email" in copy.reviewed, false);
+      assert.equal(copy.reviewed.legal.some(row => row.key === "email"), false);
+    }
+  }
+});
+
+test("LINE contact copy and the phone note are pending; the legal table has no email row", async () => {
+  const expected = {
+    ko: { contactBody: "LINE 접수는 현재 준비 중입니다. 시작될 때까지 기다려 주세요.", lineAdd: "LINE 친구 추가" },
+    ja: { contactBody: "LINEでの受付は現在準備中です。開始までお待ちください。", lineAdd: "LINEで友だち追加" }
+  };
+  for (const lang of ["ko", "ja"]) {
+    const copy = copies[lang];
+    assert.equal(copy.reviewed.contactBody, expected[lang].contactBody);
+    assert.equal(copy.ui.lineAdd, expected[lang].lineAdd);
+    for (const key of ["reviewed.contactBody", "reviewed.legal.phone", "ui.lineAdd"]) assert.ok(copy.pending.includes(key), `${lang}: ${key}`);
+    const phone = copy.reviewed.legal.find(row => row.key === "phone");
+    assert.match(phone.value, /※診察中はお電話に出られない場合があります。LINEでもお問い合わせを承ります$/);
+    const original = fs.readFileSync(path.join(repo, ...(lang === "ja" ? ["ja"] : []), "index.html"), "utf8");
+    assert.ok(original.includes(`<dt>${phone.label}</dt><dd>${phone.value.replace("LINEでも", "メールでも")}</dd>`), `${lang}: only the phone note changes`);
+    const legal = await renderPage(lang, "s7");
+    assert.doesNotMatch(legal, /<dt>メールアドレス<\/dt>|reviewed\.legal\.email/);
+    assert.ok(legal.includes(`<div data-review="pending" data-copy-key="reviewed.legal.phone"><dt>${phone.label}</dt><dd>${phone.value}</dd></div>`));
+  }
+});
+
+test("unconfigured LINE renders pending contact text and keeps the S4 guide; configured LINE renders the add link", async () => {
+  for (const lang of ["ko", "ja"]) {
+    const copy = copies[lang];
+    for (const page of ["s1", "s4", "s5"]) {
+      const html = await renderPage(lang, page);
+      assert.ok(html.includes(`<span data-review="pending" data-copy-key="reviewed.contactBody">${copy.reviewed.contactBody}</span>`));
+      if (page === "s1") {
+        assert.ok(html.includes(`<p data-review="pending" data-copy-key="reviewed.contactBody">${copy.reviewed.contactBody}</p>`));
+        assert.doesNotMatch(html, /data-copy-key="ui\.lineAdd"/);
+      }
+      if (page === "s4") {
+        assert.ok(html.includes(`<p>${copy.ui.readyHelp}</p>`));
+        assert.ok(html.includes(`<a href="${lang === "ja" ? "/ja" : ""}/guide/">${copy.ui.lineGuideTitle}</a>`));
+        assert.doesNotMatch(html, /id="line-button"/);
+      }
+    }
+    const lineURL = "https://line.me/R/ti/p/example";
+    const html = await renderPage(lang, "s1", { lineURL });
+    assert.equal(html.includes(copy.reviewed.contactBody), false);
+    assert.ok(html.includes(`<a class="primary" href="${lineURL}"><span data-review="pending" data-copy-key="ui.lineAdd">${copy.ui.lineAdd}</span></a>`));
+    const confirm = await renderPage(lang, "s4", { lineURL });
+    assert.match(confirm, /id="line-button"/);
+    assert.doesNotMatch(confirm, /id="line-panel"|footer-contact/);
+  }
+});
+
+test("load failure keeps the explanation in both languages without an email contact", async () => {
+  for (const lang of ["ko", "ja"]) {
+    assert.equal(copies[lang].ui.loadError, lang === "ko" ? "페이지를 불러오지 못했습니다." : "ページを読み込めませんでした。");
+    for (const lineURL of ["", "https://line.me/R/ti/p/example"]) {
+      const html = await renderPage(lang, "s1", { lineURL, loadFailure: true });
+      assert.ok(html.includes(`<p data-review="pending">${copies[lang].ui.loadError}</p>`));
+      assert.doesNotMatch(html, /<a\b|メール|이메일/);
+    }
+  }
+});
+
 test("partner clinic name is absent from the S1 hero and service cards", () => {
   const clinicName = "山梨在宅リハビリクリニック";
   const app = fs.readFileSync(path.join(__dirname, "src/app.js"), "utf8");
@@ -226,7 +326,7 @@ test("app source keeps required notices adjacent to S3/S4 actions and uses the r
   assert.match(app, /aria-label="\$\{escape\(copy\.ui\.cartCount\)\}: \$\{state\.count\}"/);
   assert.match(app, /history\.replaceState\(history\.state/);
   assert.match(app, /const handoff = config\.LINE_ADD_URL \? ui\("handoff"/);
-  assert.match(app, /<p data-review="pending">\$\{loadError\}<\/p><a class="email"/);
+  assert.match(app, /<p data-review="pending">\$\{loadError\}<\/p><\/main>/);
 });
 
 test("price values are defined only in root prices.js and its generated copy", () => {
@@ -269,7 +369,7 @@ test("unchanged reviewed medical, flow, services and legal rows match current pa
     }
     for (const item of copy.flow.slice(0, 3)) assert.ok(sourceText.includes(compact(item)));
     assert.ok(sourceText.includes(compact(copy.priceNote)));
-    for (const item of copy.legal.filter(item => item.key !== "quantity")) {
+    for (const item of copy.legal.filter(item => !["quantity", "phone"].includes(item.key))) {
       assert.ok(source.includes(`<dt>${item.label}</dt><dd>${item.value}</dd>`), item.key);
     }
   }
@@ -287,7 +387,9 @@ test("product image slots use per-dose paths, keep color-dot controls, and expos
   const app = fs.readFileSync(path.join(__dirname, "src/app.js"), "utf8");
   const styles = fs.readFileSync(path.join(__dirname, "src/styles.css"), "utf8");
   const build = fs.readFileSync(path.join(__dirname, "build.cjs"), "utf8");
-  assert.match(app, /src="\/assets\/pens\/pen-\$\{escape\(dose\)\}\.png"/);
+  assert.match(app, /file = `pen-\$\{dose\}`/);
+  assert.match(app, /src="\/assets\/pens\/\$\{escape\(file\)\}\.png"/);
+  assert.match(app, /productImage\("2\.5mg · 5mg", "", "pens-main"\)/);
   assert.match(app, /width="320" height="180"/);
   assert.match(app, /class="dose-art image-fallback"/);
   assert.match(app, /image\.addEventListener\("error", showFallback/);
@@ -339,6 +441,7 @@ test("PUBLIC_BUILD strips review-only metadata and a normal rebuild restores it"
       cwd: repo,
       env: { ...process.env, PUBLIC_BUILD: "true" }
     });
+    assertNoEmailInDist();
     for (const lang of ["ko", "ja"]) {
       const copy = JSON.parse(fs.readFileSync(path.join(dist, "i18n", `${lang}.json`), "utf8"));
       assert.equal("pending" in copy, false);
