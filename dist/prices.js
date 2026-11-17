@@ -1,5 +1,3 @@
-// 価格の正 = repo_kabukuri/docs/decisions/2026-11-17-tabikuri-price-and-free-certificate.md（カブクリ現行価格+2,000円）
-// 全言語のページがこのファイルを読む。価格を変えるときはここだけ直す
 const PRICES = [
   ["2.5mg", 13980, 33980, 61880, 117200],
   ["5mg", 24480, 64880, 121760, 237200],

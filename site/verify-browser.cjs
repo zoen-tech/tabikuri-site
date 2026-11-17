@@ -98,6 +98,16 @@ async function checkRequestFlow() {
     await page.locator('[data-pens="24"]').click();
     assert.equal(await page.locator("#add-button").isEnabled(), true);
     await page.locator("#add-button").click();
+    assert.equal((await page.locator("#added-sheet .primary").textContent()).trim(), copies.ko.ui.goCart);
+    assert.ok((await page.locator(".bottom-bar .bar-label").textContent()).includes("1"), "sticky count refreshes after add");
+    assert.equal(numeric(await page.locator(".bottom-bar .bar-price").textContent()), prices[0][3]);
+    assert.equal((await page.locator(".bottom-bar .primary").textContent()).trim(), copies.ko.ui.goCart);
+    assert.equal(await page.locator("[data-cart-badge]").getAttribute("aria-label"), `${copies.ko.ui.cartCount}: 1`);
+    await page.locator("[data-close-sheet]").click();
+    await page.locator('[data-pens="12"]').click();
+    await page.locator("#add-button").click();
+    assert.equal((await page.locator("#sheet-title").textContent()).trim(), copies.ko.ui.changed);
+    assert.equal(await page.locator('#sheet-title[data-review="pending"]').count(), 1);
     await page.locator("[data-close-sheet]").click();
     await page.locator('[data-dose="5mg"]').click();
     await page.locator('[data-pens="48"]').click();
@@ -106,7 +116,9 @@ async function checkRequestFlow() {
     await Promise.all([page.waitForURL(`${origin}/cart/`), page.locator("#added-sheet .primary").click()]);
     await page.waitForSelector('#app[data-ready="true"]');
     assert.equal(await page.locator("[data-cart-dose]").count(), 2);
-    assert.equal(numeric(await page.locator(".total-box .price").textContent()), prices[0][3] + prices[1][4]);
+    assert.equal(numeric(await page.locator(".total-box .price").textContent()), prices[0][2] + prices[1][4]);
+    assert.equal((await page.locator('[data-event="proceed-confirm"]').textContent()).trim(), copies.ko.ui.reserve);
+    assert.equal(await page.locator('.required-notices + [data-event="proceed-confirm"]').count(), 1);
     const language = page.locator(".lang-link");
     await Promise.all([page.waitForURL("**/ja/cart/"), language.click()]);
     await page.waitForSelector('#app[data-ready="true"]');
@@ -116,35 +128,71 @@ async function checkRequestFlow() {
     await Promise.all([page.waitForURL(`${origin}/confirm/`), page.locator('[data-event="proceed-confirm"]').click()]);
     await page.waitForSelector('#app[data-ready="true"]');
     assert.equal(await page.locator("[data-final-facts] > div").count(), 6);
+    assert.equal(await page.locator('[data-final-facts] .fact-translation[data-review="pending"]').count(), 4);
+    assert.equal(await page.locator('[data-final-facts] .fact-original[lang="ja"]').count(), 4);
     assert.equal(await page.locator("[data-agreement]").count(), 4);
-    assert.equal(await page.locator("#line-button").isDisabled(), true);
-    for (const checkbox of await page.locator("[data-agreement]").all()) await checkbox.check();
-    assert.equal(await page.locator("#line-button").isEnabled(), true);
-    assert.equal((await page.locator("#line-button").textContent()).trim(), copies.ko.ui.ready);
-    await page.locator("#line-button").click();
-    assert.equal(await page.evaluate(() => document.activeElement?.classList.contains("email")), true);
+    assert.equal(await page.locator("#line-button").count(), 0);
+    assert.equal(await page.locator('#line-panel[data-review="pending"] .email').count(), 1);
+    for (const width of [360, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false, `Korean S4 overflow at ${width}`);
+    }
     assert.deepEqual(page.runtimeErrors, []);
   } finally { await context.close(); }
-  log("24 prices, no default/quantity gate, 24/48 selection, multi-dose sum, language retention, six final facts, four required agreements, and LINE pending fallback passed");
+  log("S2-S4 flow: sticky refresh, replacement notice, revised actions, adjacent notices, Korean/Japanese final facts, and pending email-only LINE state passed");
 }
 
 async function checkStorageFallback() {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   try {
-    await context.addInitScript(() => Object.defineProperty(window, "localStorage", { get() { throw new DOMException("denied", "SecurityError"); } }));
+    await context.addInitScript(() => {
+      for (const name of ["localStorage", "sessionStorage"]) {
+        Object.defineProperty(window, name, { get() { throw new DOMException("denied", "SecurityError"); } });
+      }
+    });
     const page = await open(context, "/mounjaro/");
     await page.locator('[data-dose="15mg"]').click();
     await page.locator('[data-pens="48"]').click();
     await page.locator("#add-button").click();
-    await Promise.all([page.waitForURL(`${origin}/cart/`), page.locator("#added-sheet .primary").click()]);
+    await Promise.all([page.waitForURL("**/cart/?r=M150-48"), page.locator("#added-sheet .primary").click()]);
     await page.waitForSelector('#app[data-ready="true"]');
+    assert.equal(new URL(page.url()).searchParams.get("r"), "M150-48");
     assert.equal(await page.locator("[data-cart-dose]").count(), 1);
-    await Promise.all([page.waitForURL(`${origin}/confirm/`), page.locator('[data-event="proceed-confirm"]').click()]);
+    await Promise.all([page.waitForURL("**/confirm/?r=M150-48"), page.locator('[data-event="proceed-confirm"]').click()]);
     await page.waitForSelector('#app[data-ready="true"]');
+    assert.equal(new URL(page.url()).searchParams.get("r"), "M150-48");
     assert.equal(await page.locator("[data-agreement]").count(), 4);
     assert.deepEqual(page.runtimeErrors, []);
   } finally { await context.close(); }
-  log("localStorage denied: session-scoped fallback completes S2-S4");
+  log("localStorage and sessionStorage denied: URL request code preserves S2-S4 state");
+}
+
+async function checkConfiguredLine() {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  try {
+    await context.addInitScript(() => {
+      localStorage.setItem("tabikuri-request-v2", JSON.stringify({
+        lines: [{ dose: "5mg", pens: 12 }, { dose: "12.5mg", pens: 4 }],
+        expiresAt: Date.now() + 86400000
+      }));
+    });
+    await context.route(`${origin}/config.js`, route => route.fulfill({
+      contentType: "text/javascript",
+      body: `window.SITE_CONFIG = Object.freeze({ BRAND_NAME: Object.freeze({ ko: "타비 클리닉", ja: "たびクリ" }), LINE_ADD_URL: "${origin}/line-add", SITE_ORIGIN: "https://tabikuri.online", ALLOW_MULTI_LINES: true, NOINDEX: true, PUBLIC_BUILD: false });`
+    }));
+    const page = await open(context, "/confirm/");
+    assert.equal(await page.locator(".footer-contact").count(), 0);
+    assert.equal((await page.locator("body").innerText()).includes(copies.ko.reviewed.contactBody), false);
+    assert.equal(await page.locator("#line-panel").count(), 0);
+    assert.equal(await page.locator("#line-button").isDisabled(), true);
+    assert.equal(await page.locator('.required-notices + #line-button').count(), 1);
+    for (const checkbox of await page.locator("[data-agreement]").all()) await checkbox.check();
+    assert.equal(await page.locator("#line-button").isEnabled(), true);
+    await Promise.all([page.waitForURL("**/line-add?request=*"), page.locator("#line-button").click()]);
+    assert.equal(new URL(page.url()).searchParams.get("request"), "M050-12,M125-4");
+    assert.deepEqual(page.runtimeErrors, []);
+  } finally { await context.close(); }
+  log("Configured LINE: pending footer/card hidden, enabled button shown, adjacent notices, and M025-style request code passed");
 }
 
 async function checkCopyAndAccessibility() {
@@ -157,6 +205,9 @@ async function checkCopyAndAccessibility() {
     assert.equal(await home.getByText(copies.ko.ui.doctorOnline, { exact: true }).isVisible(), true);
     assert.equal(await home.locator(".hero .primary").count(), 1);
     assert.equal(await home.locator("img").count(), 0);
+    assert.equal(await home.locator(".bottom-bar .bar-label, .bottom-bar .bar-price").count(), 0);
+    assert.equal((await home.locator(".bottom-bar .primary").textContent()).trim(), copies.ko.ui.priceView);
+    assert.equal(await home.locator("[data-cart-badge]").getAttribute("aria-label"), `${copies.ko.ui.cartCount}: 0`);
     const pendingText = await home.locator('[data-review="pending"]').allTextContents();
     assert.ok(pendingText.some(text => text.includes(copies.ko.reviewed.importNotice)));
     const controls = home.locator(".primary, .lang-link, .cart-link");
@@ -167,6 +218,11 @@ async function checkCopyAndAccessibility() {
     const pendingRow = legal.locator('.law [data-copy-key="reviewed.legal.quantity"]');
     assert.equal(await pendingRow.count(), 1);
     assert.equal((await pendingRow.innerText()).includes("24本"), false);
+    const priceLink = legal.locator(".legal-price-link");
+    assert.equal(await priceLink.count(), 1);
+    assert.equal(await priceLink.locator('[data-review="pending"]').count(), 1);
+    assert.equal(await priceLink.getAttribute("href"), "/mounjaro/#price-table");
+    assert.equal((await priceLink.textContent()).trim(), copies.ko.ui.priceTableLink);
     await legal.close();
   } finally { await context.close(); }
 
@@ -178,7 +234,7 @@ async function checkCopyAndAccessibility() {
     const values = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
     assert.ok((values[0] + .05) / (values[1] + .05) >= 4.5, foreground);
   }
-  log("clinic-style first view, one primary hero action, no imagery, pending customs/legal copy, 48px controls, and text contrast passed");
+  log("S1 empty sticky bar and badge label, pending legal price link, clinic first view, controls, and text contrast passed");
 }
 
 async function capture() {
@@ -209,6 +265,7 @@ async function capture() {
     await checkAllPages();
     await checkRequestFlow();
     await checkStorageFallback();
+    await checkConfiguredLine();
     await checkCopyAndAccessibility();
     await capture();
     fs.mkdirSync(shots, { recursive: true });

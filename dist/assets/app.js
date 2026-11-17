@@ -15,7 +15,7 @@
     const copy = await response.json();
     if (typeof PRICES === "undefined" || !Array.isArray(PRICES) || PRICES.length !== 6) throw new Error("prices");
     const prices = PRICES;
-    const pending = new Set(copy.pending);
+    const pending = new Set(copy.pending || []);
     const attr = key => pending.has(key) ? ` data-review="pending" data-copy-key="${escape(key)}"` : "";
     const ui = (key, tag = "span", extra = "") => `<${tag}${attr(`ui.${key}`)}${extra}>${escape(copy.ui[key])}</${tag}>`;
     const reviewed = (key, text, tag = "span", extra = "") => `<${tag}${attr(`reviewed.${key}`)}${extra}>${escape(text)}</${tag}>`;
@@ -41,17 +41,25 @@
       prices,
       storage: availableStorage(),
       key: storageKey,
-      allowMultiLines: config.ALLOW_MULTI_LINES
+      allowMultiLines: config.ALLOW_MULTI_LINES,
+      initialCode: new URLSearchParams(location.search).get("r") || ""
     });
 
     const routes = {
       s1: "", s2: "mounjaro", s3: "cart", s4: "confirm", s5: "guide",
       s6: "notice", s7: "legal", s8: "privacy", s9: "terms", s404: ""
     };
-    const href = target => `${lang === "ja" ? "/ja" : ""}/${routes[target] ? `${routes[target]}/` : ""}`;
+    const carryRequest = (path, params = {}) => {
+      const search = new URLSearchParams(params);
+      const state = cart.snapshot();
+      if (state.volatile && state.count) search.set("r", cart.requestCode());
+      const query = search.toString().replace(/%2C/gi, ",");
+      return `${path}${query ? `?${query}` : ""}`;
+    };
+    const href = (target, params) => carryRequest(`${lang === "ja" ? "/ja" : ""}/${routes[target] ? `${routes[target]}/` : ""}`, params);
     const languageHref = (() => {
       const route = routes[page] || "";
-      return `${lang === "ko" ? "/ja" : ""}/${route ? `${route}/` : ""}`;
+      return carryRequest(`${lang === "ko" ? "/ja" : ""}/${route ? `${route}/` : ""}`);
     })();
     const icon = name => {
       const paths = {
@@ -66,18 +74,19 @@
       return `<a class="skip" href="#main">${ui("skip")}</a><header class="header">
         <a class="brand" href="${href("s1")}">${escape(brand)}</a>
         <a class="lang-link" href="${languageHref}" hreflang="${lang === "ko" ? "ja" : "ko"}">${escape(copy.otherLang)}</a>
-        <a class="cart-link" href="${href("s3")}" aria-label="${escape(copy.ui.cart)}">${icon("cart")}<span class="badge" data-cart-badge aria-label="${escape(copy.ui.cartCount)}">${state.count}</span></a>
+        <a class="cart-link" href="${href("s3")}" aria-label="${escape(copy.ui.cart)}">${icon("cart")}<span class="badge" data-cart-badge aria-label="${escape(copy.ui.cartCount)}: ${state.count}">${state.count}</span></a>
       </header>`;
     }
 
     function footer() {
+      const contact = config.LINE_ADD_URL ? "" : `<div class="footer-contact"><strong>${escape(copy.reviewed.contactTitle)}</strong><br>${escape(copy.reviewed.contactBody)}<br><a class="email" href="mailto:${escape(copy.reviewed.email)}">${escape(copy.reviewed.email)}</a></div>`;
       return `<footer class="footer"><nav class="footer-nav" aria-label="${escape(copy.ui.home)}">
         <a href="${href("s5")}">${escape(copy.reviewed.flowTitle)}</a>
         <a href="${href("s6")}">${escape(copy.reviewed.medicalTitle)}</a>
         <a href="${href("s7")}">${escape(copy.reviewed.legalTitle)}</a>
         <a href="${href("s8")}">${escape(copy.meta.s8)}</a>
         <a href="${href("s9")}">${escape(copy.meta.s9)}</a>
-      </nav><div class="footer-contact"><strong>${escape(copy.reviewed.contactTitle)}</strong><br>${escape(copy.reviewed.contactBody)}<br><a class="email" href="mailto:${escape(copy.reviewed.email)}">${escape(copy.reviewed.email)}</a></div>
+      </nav>${contact}
       <div lang="ja">${copy.reviewed.footerHtml}</div></footer>`;
     }
 
@@ -98,13 +107,14 @@
     }
 
     function summaryLines(state, actions = false) {
-      return `<ul class="cart-lines">${state.lines.map(line => `<li class="cart-line" data-cart-dose="${escape(line.dose)}"><div class="line-main"><strong>${escape(copy.ui.product)} ${escape(line.dose)} · ${line.pens}${escape(copy.ui.pens)}</strong>${money(line.price)}</div>${actions ? `<div class="line-actions"><a class="text-button" href="${href("s2")}?dose=${encodeURIComponent(line.dose)}">${escape(copy.ui.change)}</a><button class="text-button" type="button" data-remove="${escape(line.dose)}">${escape(copy.ui.remove)}</button></div>` : ""}</li>`).join("")}</ul>`;
+      return `<ul class="cart-lines">${state.lines.map(line => `<li class="cart-line" data-cart-dose="${escape(line.dose)}"><div class="line-main"><strong>${escape(copy.ui.product)} ${escape(line.dose)} · ${line.pens}${escape(copy.ui.pens)}</strong>${money(line.price)}</div>${actions ? `<div class="line-actions"><a class="text-button" href="${href("s2", { dose: line.dose })}">${escape(copy.ui.change)}</a><button class="text-button" type="button" data-remove="${escape(line.dose)}">${escape(copy.ui.remove)}</button></div>` : ""}</li>`).join("")}</ul>`;
     }
 
     function bottomBar() {
       const state = cart.snapshot();
       const destination = state.count ? href("s3") : href("s2");
       const label = state.count ? ui("goCart") : escape(copy.ui.priceView);
+      if (!state.count && page === "s1") return `<div class="bottom-bar"><div class="bottom-bar-inner bottom-bar-empty"><a class="primary" href="${destination}" data-event="bottom-action">${label}</a></div></div>`;
       return `<div class="bottom-bar"><div class="bottom-bar-inner"><div><div class="bar-label">${ui("fee")} · ${state.count}${escape(copy.ui.requestsUnit)}</div><div class="bar-price">${number(state.total)}${unit}</div></div><a class="primary" href="${destination}" data-event="bottom-action">${label}</a></div></div>`;
     }
 
@@ -125,13 +135,13 @@
         ${importNotice()}${requiredNotices()}<button class="primary" id="add-button" type="button" data-event="add-request" disabled>${ui("add")}</button><p class="disabled-reason" id="disabled-reason"${attr("ui.selectBoth")}>${escape(copy.ui.selectBoth)}</p></section>
         <section class="section soft"><h2>${escape(copy.ui.allPrices)}</h2><p class="subtle">${escape(copy.ui.scrollHint)}</p><div class="table-scroll"><table id="price-table" aria-label="${escape(copy.ui.allPrices)}"><thead><tr><th>${escape(copy.ui.chooseDose)}</th>${COUNTS.map(count => `<th>${count}${escape(copy.ui.pens)}</th>`).join("")}</tr></thead><tbody>${prices.map(([dose, ...fees]) => `<tr><td>${escape(dose)}</td>${fees.map(fee => `<td>${number(fee)}${unit}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="subtle">${escape(copy.reviewed.priceNote)}</p></section>
         <section class="section">${medical()}<details class="disclosure"><summary>${escape(copy.ui.deliveryTitle)}</summary><div class="disclosure-body"><p>${escape(copy.reviewed.services[1].body)}</p></div></details><details class="disclosure"><summary>${escape(copy.ui.cancelTitle)}</summary><div class="disclosure-body"><p>${escape(copy.reviewed.priceNote)}</p></div></details></section></main>
-        <dialog class="sheet" id="added-sheet"><div class="sheet-inner"><h2>${ui("added")}</h2><div id="added-summary"></div><div class="sheet-actions"><a class="primary" href="${href("s3")}">${ui("goCart")}</a><button class="secondary" type="button" data-close-sheet>${escape(copy.ui.returnPrices)}</button></div></div></dialog>${bottomBar()}`;
+        <dialog class="sheet" id="added-sheet"><div class="sheet-inner">${ui("added", "h2", ' id="sheet-title"')}<div id="added-summary"></div><div class="sheet-actions"><a class="primary" href="${href("s3")}">${ui("goCart")}</a><button class="secondary" type="button" data-close-sheet>${escape(copy.ui.returnPrices)}</button></div></div></dialog>${bottomBar()}`;
     }
 
     function cartPage() {
       const state = cart.snapshot();
       if (!state.count) return `<main id="main"><section class="section"><h1>${escape(copy.meta.s3)}</h1>${ui("empty", "p")} ${ui("emptyHelp", "p", ' class="subtle"')}<a class="primary" href="${href("s2")}">${escape(copy.ui.priceView)}</a></section></main>`;
-      return `<main id="main"><section class="section"><h1>${ui("cart")}</h1>${summaryLines(state, true)}<div class="total-box"><div class="total-row"><strong>${ui("fee")}</strong>${money(state.total)}</div><p class="subtle">${escape(copy.ui.includedDetail)}</p></div>${state.volatile ? ui("memoryOnly", "p", ' class="subtle"') : ""}</section><section class="section">${importNotice()}${requiredNotices()}${medical()}<a class="primary" href="${href("s4")}" data-event="proceed-confirm">${ui("toConfirm")}</a></section></main>${bottomBar()}`;
+      return `<main id="main"><section class="section"><h1>${ui("cart")}</h1>${summaryLines(state, true)}<div class="total-box"><div class="total-row"><strong>${ui("fee")}</strong>${money(state.total)}</div><p class="subtle">${escape(copy.ui.includedDetail)}</p></div>${state.volatile ? ui("memoryOnly", "p", ' class="subtle"') : ""}</section><section class="section">${importNotice()}${medical()}${requiredNotices()}<a class="primary" href="${href("s4")}" data-event="proceed-confirm">${ui("reserve")}</a></section></main>${bottomBar()}`;
     }
 
     function legalValue(key) {
@@ -144,13 +154,19 @@
       const desired = state.lines.map(line => `${line.dose} · ${line.pens}${copy.ui.pens}`).join(" / ");
       const facts = [
         [copy.ui.desired, escape(desired)], [copy.ui.amount, `${number(state.total)}${unit}`],
-        [copy.ui.payment, `${legalValue("paymentTiming")}／${legalValue("paymentMethod")}`],
-        [copy.ui.deliveryTiming, legalValue("deliveryTiming")], [copy.ui.cancel, legalValue("cancel")],
-        [copy.ui.notPrescribed, legalValue("notPrescribed")]
+        [copy.ui.payment, `${legalValue("paymentTiming")}／${legalValue("paymentMethod")}`, "finalPayment"],
+        [copy.ui.deliveryTiming, legalValue("deliveryTiming"), "finalDelivery"], [copy.ui.cancel, legalValue("cancel"), "finalCancel"],
+        [copy.ui.notPrescribed, legalValue("notPrescribed"), "finalNotPrescribed"]
       ];
+      const factValue = ([, value, translation]) => translation && lang === "ko"
+        ? `${ui(translation, "span", ' class="fact-translation"')}<small class="fact-original" lang="ja">${value}</small>`
+        : translation ? `<span lang="ja">${value}</span>` : value;
+      const lineAction = config.LINE_ADD_URL
+        ? `<button class="primary" id="line-button" type="button" data-event="line-reservation"${attr("ui.lineButton")} disabled>${escape(copy.ui.lineButton)}</button>`
+        : `<div class="contact-card" id="line-panel"${attr("ui.readyHelp")}><p>${escape(copy.ui.readyHelp)}</p><a class="email" href="mailto:${escape(copy.reviewed.email)}">${escape(copy.reviewed.email)}</a><p><a href="${href("s5")}">${escape(copy.ui.lineGuideTitle)}</a></p></div>`;
       return `<main id="main"><section class="section"><h1>${escape(copy.meta.s4)}</h1><h2>${escape(copy.ui.summary)}</h2>${summaryLines(state)}<p><a href="${href("s3")}">${escape(copy.ui.edit)}</a></p>${ui("handoff", "p", ' class="subtle"')}</section>
-        <section class="section soft"><h2>${escape(copy.ui.finalTitle)}</h2><dl class="fact-list" data-final-facts>${facts.map(([label, value]) => `<div><dt>${escape(label)}</dt><dd>${value}</dd></div>`).join("")}</dl></section>
-        <section class="section">${requiredNotices()}${medical()}<h2>${escape(copy.ui.agreementTitle)}</h2><div class="agreements">${[1,2,3,4].map(index => `<label class="check"${attr(`ui.agreement${index}`)}><input type="checkbox" required data-agreement><span>${escape(copy.ui[`agreement${index}`])}</span></label>`).join("")}</div><button class="primary" id="line-button" type="button" data-event="line-reservation"${attr(config.LINE_ADD_URL ? "ui.lineButton" : "ui.ready")} disabled>${escape(config.LINE_ADD_URL ? copy.ui.lineButton : copy.ui.ready)}</button><div class="contact-card" id="line-panel"><p>${escape(copy.ui.readyHelp)}</p><a class="email" href="mailto:${escape(copy.reviewed.email)}">${escape(copy.reviewed.email)}</a><p><a href="${href("s5")}">${escape(copy.ui.lineGuideTitle)}</a></p></div></section></main>`;
+        <section class="section soft"><h2>${escape(copy.ui.finalTitle)}</h2><dl class="fact-list" data-final-facts>${facts.map(fact => `<div><dt>${escape(fact[0])}</dt><dd>${factValue(fact)}</dd></div>`).join("")}</dl></section>
+        <section class="section">${medical()}<h2>${escape(copy.ui.agreementTitle)}</h2><div class="agreements">${[1,2,3,4].map(index => `<label class="check"${attr(`ui.agreement${index}`)}><input type="checkbox" required data-agreement><span>${escape(copy.ui[`agreement${index}`])}</span></label>`).join("")}</div>${requiredNotices()}${lineAction}</section></main>`;
     }
 
     function guide() {
@@ -162,7 +178,7 @@
     }
 
     function legal() {
-      return `<main id="main"><section class="section"><h1>${escape(copy.reviewed.legalTitle)}</h1><dl class="law" lang="ja">${copy.reviewed.legal.map(item => `<div${attr(`reviewed.legal.${item.key}`)}><dt>${escape(item.label)}</dt><dd>${item.value}</dd></div>`).join("")}</dl></section></main>`;
+      return `<main id="main"><section class="section"><h1>${escape(copy.reviewed.legalTitle)}</h1><dl class="law" lang="ja">${copy.reviewed.legal.map(item => `<div${attr(`reviewed.legal.${item.key}`)}><dt>${escape(item.label)}</dt><dd>${item.value}${item.key === "price" ? `<a class="legal-price-link" lang="${lang}" href="${href("s2")}#price-table">${ui("priceTableLink")}</a>` : ""}</dd></div>`).join("")}</dl></section></main>`;
     }
 
     function placeholder(kind) {
@@ -185,9 +201,26 @@
 
     function buildLineURL(state) {
       const url = new URL(config.LINE_ADD_URL);
-      const code = state.lines.map(line => `M${line.dose.replace("mg", "").replace(".", "").padStart(3, "0")}-${line.pens}`).join(",");
+      const code = state.lines.map(line => `M${String(Math.round(parseFloat(line.dose) * 10)).padStart(3, "0")}-${line.pens}`).join(",");
       url.searchParams.set("request", code);
       return url.toString();
+    }
+
+    function refreshRequestNavigation() {
+      const state = cart.snapshot();
+      const badge = root.querySelector("[data-cart-badge]");
+      if (badge) {
+        badge.textContent = state.count;
+        badge.setAttribute("aria-label", `${copy.ui.cartCount}: ${state.count}`);
+      }
+      const currentBar = root.querySelector(".bottom-bar");
+      if (currentBar) currentBar.outerHTML = bottomBar();
+      root.querySelectorAll('a[href^="/"]').forEach(anchor => {
+        const url = new URL(anchor.href, location.origin);
+        if (state.volatile && state.count) url.searchParams.set("r", cart.requestCode());
+        else url.searchParams.delete("r");
+        anchor.href = `${url.pathname}${url.search}${url.hash}`.replace(/%2C/gi, ",");
+      });
     }
 
     function bind() {
@@ -215,8 +248,10 @@
         add.addEventListener("click", () => {
           const result = cart.add(dose, pens);
           if (!result.ok) return;
+          const sheetTitle = result.replaced ? "changed" : "added";
+          document.querySelector("#sheet-title").outerHTML = ui(sheetTitle, "h2", ' id="sheet-title"');
           document.querySelector("#added-summary").innerHTML = summaryLines(result.state);
-          document.querySelector("[data-cart-badge]").textContent = result.state.count;
+          refreshRequestNavigation();
           document.querySelector("#added-sheet").showModal();
         });
         root.querySelector("[data-close-sheet]").addEventListener("click", () => document.querySelector("#added-sheet").close());

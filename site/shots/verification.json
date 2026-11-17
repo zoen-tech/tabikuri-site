@@ -1,11 +1,12 @@
 {
   "passed": true,
-  "verifiedAt": "2026-11-17T07:26:49.734Z",
+  "verifiedAt": "2026-11-17T07:42:39.894Z",
   "checks": [
     "S1-S9 and 404 in both languages: noindex, local-only requests, LINE pending guidance, and 360/390/768/1280 layouts passed",
-    "24 prices, no default/quantity gate, 24/48 selection, multi-dose sum, language retention, six final facts, four required agreements, and LINE pending fallback passed",
-    "localStorage denied: session-scoped fallback completes S2-S4",
-    "clinic-style first view, one primary hero action, no imagery, pending customs/legal copy, 48px controls, and text contrast passed",
+    "S2-S4 flow: sticky refresh, replacement notice, revised actions, adjacent notices, Korean/Japanese final facts, and pending email-only LINE state passed",
+    "localStorage and sessionStorage denied: URL request code preserves S2-S4 state",
+    "Configured LINE: pending footer/card hidden, enabled button shown, adjacent notices, and M025-style request code passed",
+    "S1 empty sticky bar and badge label, pending legal price link, clinic first view, controls, and text contrast passed",
     "390px screenshots saved for Korean S1-S4 and Japanese S1"
   ]
 }

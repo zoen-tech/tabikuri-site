@@ -104,7 +104,10 @@ th:first-child { background: var(--soft); }
 .fact-list div, .law div { border-top: 1px solid var(--line); }
 .fact-list dt, .law dt { padding: 13px 0 4px; font-size: 13px; font-weight: 800; color: var(--muted); }
 .fact-list dd, .law dd { margin: 0; padding: 0 0 13px; }
+.fact-translation, .fact-original { display: block; }
+.fact-original { margin-top: 7px; color: var(--muted); font-size: 13px; line-height: 1.55; }
 .law div[data-review="pending"] { margin: 0 -10px; padding: 0 10px; background: #fff9e8; }
+.legal-price-link { display: block; margin-top: 8px; }
 .agreements { display: grid; gap: 11px; }
 .check { display: flex; gap: 12px; min-height: 52px; align-items: flex-start; padding: 13px; border: 1px solid var(--line); border-radius: 13px; }
 .check input { width: 22px; height: 22px; flex: 0 0 auto; margin: 1px 0 0; accent-color: var(--accent); }
@@ -113,6 +116,7 @@ th:first-child { background: var(--soft); }
 .placeholder { min-height: 260px; display: grid; place-items: center; border: 2px dashed var(--line); border-radius: 18px; color: var(--muted); text-align: center; }
 .bottom-bar { position: fixed; z-index: 15; left: 50%; bottom: 0; width: min(100%,560px); transform: translateX(-50%); padding: 11px 18px max(11px,env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: rgba(255,255,255,.97); box-shadow: 0 -8px 24px rgba(23,32,51,.07); }
 .bottom-bar-inner { display: grid; grid-template-columns: 1fr minmax(146px,auto); gap: 12px; align-items: center; }
+.bottom-bar-empty { grid-template-columns: 1fr; }
 .bar-label { color: var(--muted); font-size: 12px; }
 .bar-price { font-size: 20px; font-weight: 850; font-variant-numeric: tabular-nums; }
 .bottom-bar .primary { min-height: 48px; }
