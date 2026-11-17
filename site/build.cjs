@@ -52,6 +52,8 @@ function shell(lang, page, route) {
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(path.join(dist, "assets"), { recursive: true });
 fs.mkdirSync(path.join(dist, "i18n"), { recursive: true });
+const pensSource = path.join(__dirname, "assets", "pens");
+if (fs.existsSync(pensSource)) fs.cpSync(pensSource, path.join(dist, "assets", "pens"), { recursive: true });
 for (const file of ["app.js", "cart.js", "styles.css"]) {
   let source = fs.readFileSync(path.join(__dirname, "src", file), "utf8");
   if (publicBuild && file === "app.js") {

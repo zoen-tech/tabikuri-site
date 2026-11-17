@@ -67,7 +67,10 @@ p:last-child { margin-bottom: 0; }
 .product-assurance, .product-notice { margin-bottom: 7px; font-size: 14px; }
 .product-assurance { color: var(--accent-dark); font-weight: 700; }
 .product-notice { color: var(--muted); }
-.dose-art { display: flex; gap: 7px; margin-bottom: 18px; }
+.product-image-slot { display: grid; min-height: 180px; place-items: center; margin-bottom: 18px; border-radius: 16px; background: var(--soft); overflow: hidden; }
+.product-image-slot img { display: block; width: 100%; height: 180px; object-fit: contain; }
+.product-image-slot img[hidden], .product-image-slot .image-fallback[hidden] { display: none; }
+.dose-art { display: flex; gap: 7px; align-items: center; justify-content: center; margin: 0; }
 .dose-art span { width: 33px; height: 45px; border-radius: 10px 10px 7px 7px; background: var(--dose); opacity: .86; }
 .dose-art span:nth-child(1) { --dose:#212631; } .dose-art span:nth-child(2) { --dose:#7a50a2; } .dose-art span:nth-child(3) { --dose:#388560; } .dose-art span:nth-child(4) { --dose:#bc4b4b; } .dose-art span:nth-child(5) { --dose:#3c73bd; } .dose-art span:nth-child(6) { --dose:#d27632; }
 .price { font-size: 26px; line-height: 1.2; font-weight: 850; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
@@ -103,9 +106,14 @@ th:first-child, td:first-child { position: sticky; left: 0; z-index: 1; border-r
 th:first-child { background: var(--soft); }
 .cart-lines { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
 .cart-line { padding: 17px; border: 1px solid var(--line); border-radius: 16px; }
-.line-main, .line-actions, .total-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.line-main, .line-actions, .breakdown-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .line-actions { justify-content: flex-end; margin-top: 12px; }
-.total-box { margin-top: 18px; padding: 20px; border-radius: 18px; background: var(--accent-soft); }
+.price-breakdown { margin-top: 14px; padding: 16px 18px; border-radius: 18px; background: var(--accent-soft); }
+.price-breakdown .breakdown-row { min-height: 34px; color: var(--muted); font-size: 14px; }
+.breakdown-amount { font-weight: 750; font-variant-numeric: tabular-nums; }
+.breakdown-total { margin-top: 8px; padding-top: 13px; border-top: 1px solid var(--accent); color: var(--ink) !important; }
+.breakdown-total strong { font-size: 17px; }
+.breakdown-total .price { font-size: 32px; }
 .fact-list { margin: 0; }
 .fact-list div, .law div { border-top: 1px solid var(--line); }
 .fact-list dt, .law dt { padding: 13px 0 4px; font-size: 13px; font-weight: 800; color: var(--muted); }

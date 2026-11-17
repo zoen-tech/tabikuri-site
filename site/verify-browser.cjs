@@ -65,6 +65,7 @@ async function checkAllPages() {
       assert.equal(await page.locator(`html[lang="${lang}"]`).count(), 1);
       assert.equal(await page.locator(`a[href="mailto:${copy.reviewed.email}"]`).count() > 0, true, `${url}: email`);
       assert.ok((await page.locator("body").innerText()).includes(copy.reviewed.contactBody), `${url}: pending LINE guidance`);
+      assert.doesNotMatch(await page.locator("body").innerText(), /동봉|함께 보내|의약품과 영문|お付けします|同梱|お薬と英文/, `${url}: certificate is not enclosed`);
       assert.deepEqual(page.runtimeErrors, [], `${url}: runtime errors`);
       for (const width of widths) {
         await page.setViewportSize({ width, height: 900 });
@@ -95,6 +96,8 @@ async function checkRequestFlow() {
     assert.deepEqual(table, prices.flatMap(row => row.slice(1)));
     for (const [dose, ...fees] of prices) {
       await page.locator(`[data-dose="${dose}"]`).click();
+      assert.equal(await page.locator("#selected-product-image img").getAttribute("src"), `/assets/pens/pen-${dose}.png`);
+      assert.ok((await page.locator("#selected-product-image img").getAttribute("alt")).includes(dose));
       assert.deepEqual((await page.locator("[data-count-price]").allTextContents()).map(numeric), fees);
       assert.equal(await page.locator("#add-button").isDisabled(), true);
     }
@@ -103,6 +106,10 @@ async function checkRequestFlow() {
     assert.equal(await page.locator("#add-button").isEnabled(), true);
     await page.locator("#add-button").click();
     assert.equal((await page.locator("#added-sheet .primary").textContent()).trim(), copies.ko.ui.goCart);
+    assert.equal(await page.locator("#added-sheet [data-breakdown-line]").count(), 1);
+    assert.equal(await page.locator("#added-sheet [data-breakdown-zero]").count(), 3);
+    assert.deepEqual((await page.locator("#added-sheet [data-breakdown-zero] .breakdown-amount").allTextContents()), ["0엔", "0엔", "0엔"]);
+    assert.equal(numeric(await page.locator("#added-sheet .breakdown-total .price").textContent()), prices[0][3]);
     assert.ok((await page.locator(".bottom-bar .bar-label").textContent()).includes("1"), "sticky count refreshes after add");
     assert.equal(numeric(await page.locator(".bottom-bar .bar-price").textContent()), prices[0][3]);
     assert.equal((await page.locator(".bottom-bar .primary").textContent()).trim(), copies.ko.ui.goCart);
@@ -120,7 +127,11 @@ async function checkRequestFlow() {
     await Promise.all([page.waitForURL(`${origin}/cart/`), page.locator("#added-sheet .primary").click()]);
     await page.waitForSelector('#app[data-ready="true"]');
     assert.equal(await page.locator("[data-cart-dose]").count(), 2);
-    assert.equal(numeric(await page.locator(".total-box .price").textContent()), prices[0][2] + prices[1][4]);
+    assert.equal(await page.locator("[data-breakdown-line]").count(), 2);
+    assert.equal(await page.locator("[data-breakdown-zero]").count(), 3);
+    assert.deepEqual(await page.locator("[data-breakdown-zero] .breakdown-amount").allTextContents(), ["0엔", "0엔", "0엔"]);
+    assert.equal(await page.locator('[data-breakdown-zero] [data-review="pending"]').count(), 3);
+    assert.equal(numeric(await page.locator(".breakdown-total .price").textContent()), prices[0][2] + prices[1][4]);
     assert.equal((await page.locator('[data-event="proceed-confirm"]').textContent()).trim(), copies.ko.ui.reserve);
     assert.equal(await page.locator('.required-notices + [data-event="proceed-confirm"]').count(), 1);
     assert.equal((await page.locator('.bottom-bar .primary').textContent()).trim(), copies.ko.ui.reserve);
@@ -129,11 +140,18 @@ async function checkRequestFlow() {
     await Promise.all([page.waitForURL("**/ja/cart/"), language.click()]);
     await page.waitForSelector('#app[data-ready="true"]');
     assert.equal(await page.locator("[data-cart-dose]").count(), 2);
+    assert.deepEqual(await page.locator("[data-breakdown-zero] .breakdown-amount").allTextContents(), ["0円", "0円", "0円"]);
+    assert.ok((await page.locator('[data-cart-dose="2.5mg"] [data-breakdown-line]').innerText()).includes("マンジャロ 2.5mg・12本"));
+    assert.equal((await page.locator(".breakdown-total").innerText()).includes(copies.ja.ui.totalTaxIncluded), true);
     await Promise.all([page.waitForURL(`${origin}/cart/`), page.locator(".lang-link").click()]);
     await page.waitForSelector('#app[data-ready="true"]');
     await Promise.all([page.waitForURL(`${origin}/confirm/`), page.locator('[data-event="proceed-confirm"]').click()]);
     await page.waitForSelector('#app[data-ready="true"]');
-    assert.equal(await page.locator("[data-final-facts] > div").count(), 6);
+    assert.equal(await page.locator("[data-breakdown-line]").count(), 2);
+    assert.equal(await page.locator("[data-breakdown-zero]").count(), 3);
+    assert.deepEqual(await page.locator("[data-breakdown-zero] .breakdown-amount").allTextContents(), ["0엔", "0엔", "0엔"]);
+    assert.equal(numeric(await page.locator(".breakdown-total .price").textContent()), prices[0][2] + prices[1][4]);
+    assert.equal(await page.locator("[data-final-facts] > div").count(), 5);
     assert.equal(await page.locator('[data-final-facts] .fact-translation[data-review="pending"]').count(), 4);
     assert.equal(await page.locator('[data-final-facts] .fact-original[lang="ja"]').count(), 4);
     assert.equal(await page.locator("[data-agreement]").count(), 4);
@@ -235,9 +253,17 @@ async function checkCopyAndAccessibility() {
     assert.equal(await home.locator('[data-copy-key="ui.doctorOnline"][data-review="pending"]').count(), 1);
     assert.equal(await home.locator('[data-copy-key="reviewed.services.0.body"][data-review="pending"]').count(), 1);
     assert.equal(await home.locator('[data-copy-key="reviewed.footerHtml"][data-review="pending"]').count(), 1);
+    for (const key of ["ui.trust3", "reviewed.services.2.title", "reviewed.services.2.body", "reviewed.flow.3", "ui.penAlt"]) {
+      assert.equal(await home.locator(`[data-copy-key="${key}"][data-review="pending"]`).count(), 1, key);
+    }
     assert.equal(await home.getByText(copies.ko.ui.doctorOnline, { exact: true }).isVisible(), true);
     assert.equal(await home.locator(".hero .primary").count(), 1);
-    assert.equal(await home.locator("img").count(), 0);
+    assert.equal(await home.locator(".product-card [data-product-image] img").count(), 1);
+    assert.equal(await home.locator(".product-card [data-product-image] img").getAttribute("src"), "/assets/pens/pen-2.5mg.png");
+    assert.equal(await home.locator(".product-card [data-product-image] img").getAttribute("alt"), copies.ko.ui.penAlt.replace("{dose}", "2.5mg"));
+    await home.waitForSelector('.product-card [data-product-image][data-image-fallback="true"]');
+    assert.equal(await home.locator(".product-card .image-fallback").isVisible(), true);
+    assert.equal(await home.locator(".product-card .image-fallback span").count(), 6);
     assert.equal(await home.locator(".bottom-bar .bar-label, .bottom-bar .bar-price").count(), 0);
     assert.equal((await home.locator(".bottom-bar .primary").textContent()).trim(), copies.ko.ui.priceView);
     assert.equal(await home.locator("[data-cart-badge]").getAttribute("aria-label"), `${copies.ko.ui.cartCount}: 0`);

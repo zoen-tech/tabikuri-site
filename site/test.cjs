@@ -179,10 +179,14 @@ test("new and revised copy is review-marked and Korean selector copy uses 합니
   for (const copy of [ko, ja]) {
     assert.equal(copy.ui.privacyIntro, copy.ui.placeholder);
     assert.equal(copy.ui.termsIntro, copy.ui.placeholder);
-    for (const key of ["ui.handoff", "ui.scheduleBody", "ui.lineSteps", "ui.privacyIntro", "ui.termsIntro", "ui.placeholder", "ui.memoryOnly", "ui.loadError"]) {
+    for (const key of ["reviewed.services.2.title", "reviewed.services.2.body", "reviewed.flow.3", "ui.trust3", "ui.includedDetail", "ui.consultationFee", "ui.deliveryFee", "ui.certificatePdf", "ui.totalTaxIncluded", "ui.penAlt", "ui.handoff", "ui.scheduleBody", "ui.lineSteps", "ui.privacyIntro", "ui.termsIntro", "ui.placeholder", "ui.memoryOnly", "ui.loadError"]) {
       assert.ok(copy.pending.includes(key), `${copy.langName} ${key}`);
     }
   }
+  assert.equal(ko.reviewed.services[2].body, "처방받은 모든 분께 영문 처방 증명서(PDF)를 무료로 보내 드립니다.");
+  assert.equal(ja.reviewed.services[2].body, "処方を受けた方全員に、英文の処方証明書をPDFで無料でお送りします。");
+  assert.equal(ko.reviewed.flow[3], "숙소로 의약품 배송 · 영문 처방 증명서는 PDF로 송부");
+  assert.equal(ja.reviewed.flow[3], "宿泊先へお薬をお届け・英文処方証明書はPDFでお送りします");
   for (const copy of [ko, ja]) {
     for (const key of ["ui.doctorOnline", "reviewed.services.0.body", "reviewed.footerHtml"]) {
       assert.ok(copy.pending.includes(key), `${copy.langName} ${key}`);
@@ -239,13 +243,13 @@ test("price values are defined only in root prices.js and its generated copy", (
   }
 });
 
-test("new site contains no extra stay control, removed sentence, promotional labels, drug images or external calls", () => {
+test("new site contains no extra stay control, removed sentence, promotional labels or external calls", () => {
   const files = ["site/src/app.js", "site/src/cart.js", "site/i18n/ko.json", "site/i18n/ja.json", "dist/assets/app.js", "dist/assets/cart.js", "dist/i18n/ko.json", "dist/i18n/ja.json"];
   const obsolete = ["long" + "Stay", "24펜·48펜은 일본에 중" + "장" + "기 체류", "24本・48本は、日本に中" + "長" + "期滞在"];
   for (const relative of files) {
     const text = fs.readFileSync(path.join(repo, relative), "utf8");
     for (const token of obsolete) assert.equal(text.toLowerCase().includes(token.toLowerCase()), false, `${relative}: ${token}`);
-    assert.doesNotMatch(text, /<img\b|<del\b|line-through|No\. ?1|추천|おすすめ|割引|할인|ランキング|랭킹|カートに入れる|購入する|구매/);
+    assert.doesNotMatch(text, /<del\b|line-through|No\. ?1|추천|おすすめ|割引|할인|ランキング|랭킹|カートに入れる|購入する|구매/);
     assert.doesNotMatch(text, /https?:\/\//);
   }
 });
@@ -259,14 +263,51 @@ test("unchanged reviewed medical, flow, services and legal rows match current pa
     const copy = copies[lang].reviewed;
     const sourceText = compact(source);
     assert.equal(copy.medical.length, 7);
-    for (const item of [...copy.services.slice(1), ...copy.medical]) {
+    for (const item of [copy.services[1], ...copy.medical]) {
       assert.ok(sourceText.includes(compact(item.title)), item.title);
       assert.ok(sourceText.includes(compact(item.body)), item.body.slice(0, 30));
     }
-    for (const item of copy.flow) assert.ok(sourceText.includes(compact(item)));
+    for (const item of copy.flow.slice(0, 3)) assert.ok(sourceText.includes(compact(item)));
     assert.ok(sourceText.includes(compact(copy.priceNote)));
     for (const item of copy.legal.filter(item => item.key !== "quantity")) {
       assert.ok(source.includes(`<dt>${item.label}</dt><dd>${item.value}</dd>`), item.key);
+    }
+  }
+});
+
+test("prescription certificate copy says PDF delivery and never package enclosure", () => {
+  const files = ["site/i18n/ko.json", "site/i18n/ja.json", "dist/i18n/ko.json", "dist/i18n/ja.json"];
+  const forbidden = /동봉|함께 보내|의약품과 영문|お付けします|同梱|お薬と英文/;
+  for (const relative of files) assert.doesNotMatch(fs.readFileSync(path.join(repo, relative), "utf8"), forbidden, relative);
+  assert.match(copies.ko.reviewed.services[2].body, /\(PDF\).*무료로 보내 드립니다/);
+  assert.match(copies.ja.reviewed.services[2].body, /PDFで無料でお送りします/);
+});
+
+test("product image slots use per-dose paths, keep color-dot controls, and expose a missing-image fallback", () => {
+  const app = fs.readFileSync(path.join(__dirname, "src/app.js"), "utf8");
+  const styles = fs.readFileSync(path.join(__dirname, "src/styles.css"), "utf8");
+  const build = fs.readFileSync(path.join(__dirname, "build.cjs"), "utf8");
+  assert.match(app, /src="\/assets\/pens\/pen-\$\{escape\(dose\)\}\.png"/);
+  assert.match(app, /width="320" height="180"/);
+  assert.match(app, /class="dose-art image-fallback"/);
+  assert.match(app, /image\.addEventListener\("error", showFallback/);
+  assert.match(app, /class="dose-dot"/);
+  assert.match(styles, /object-fit: contain/);
+  assert.match(build, /fs\.cpSync\(pensSource, path\.join\(dist, "assets", "pens"\)/);
+});
+
+test("S2 confirmation, S3 and S4 use one shared zero-fee breakdown with the summed total", () => {
+  const app = fs.readFileSync(path.join(__dirname, "src/app.js"), "utf8");
+  assert.match(app, /const zeroRows = \[\["consultationFee"[\s\S]+\["certificatePdf"/);
+  assert.match(app, /data-breakdown-zero=/);
+  assert.match(app, /breakdown-total/);
+  assert.match(app, /addedState = \{ lines: \[line\], total: line\.price \}/);
+  assert.match(app, /\$\{summaryLines\(state, true\)\}\$\{breakdownTotals\(state\.total\)\}/);
+  assert.match(app, /\$\{summaryLines\(state\)\}\$\{breakdownTotals\(state\.total\)\}/);
+  for (const copy of Object.values(copies)) {
+    for (const key of ["consultationFee", "deliveryFee", "certificatePdf", "totalTaxIncluded"]) {
+      assert.ok(copy.ui[key], `${copy.langName} ${key}`);
+      assert.ok(copy.pending.includes(`ui.${key}`), `${copy.langName} ui.${key}`);
     }
   }
 });

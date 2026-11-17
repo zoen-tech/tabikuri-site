@@ -27,8 +27,8 @@
         "body": "日本国内のホテル・宿泊先へお届けします。受取日は診察日から4日以上先をご指定ください。"
       },
       {
-        "title": "英文の処方証明書を無料でお付けします",
-        "body": "処方を受けた方全員に、英文の処方証明書を無料でお付けします。"
+        "title": "英文の処方証明書（PDF）を無料で送付",
+        "body": "処方を受けた方全員に、英文の処方証明書をPDFで無料でお送りします。"
       }
     ],
     "priceNote": "単位：円。医師の診察の結果、処方できない場合があり、その場合料金はかかりません。決済後はお客様のご都合によるキャンセル・返金はお受けできません（品違い・破損の場合は交換または返金）。",
@@ -69,7 +69,7 @@
       "LINEで友だち追加し、問診票に記入（滞在の最終日・受取希望日）",
       "予約時間に医師がオンライン診療",
       "処方決定後、LINEで決済リンクを送付 → クレジットカードで決済",
-      "宿泊先へお薬と英文処方証明書をお届け"
+      "宿泊先へお薬をお届け・英文処方証明書はPDFでお送りします"
     ],
     "contactTitle": "お問い合わせ・ご予約",
     "contactBody": "LINEでの受付は現在準備中です。開始までのお問い合わせは下記のメールアドレスへお送りください。",
@@ -167,7 +167,7 @@
     "doctorOnline": "日本の提携医療機関の医師がオンラインで診察",
     "trust1": "医師が処方の可否を判断",
     "trust2": "日本国内の宿泊先へお届け",
-    "trust3": "英文の処方証明書を同梱",
+    "trust3": "英文処方証明書（PDF）を無料送付",
     "catalogTitle": "診療項目",
     "doseRange": "2.5mgから15mgまで",
     "included": "税込・診察料・送料込み",
@@ -200,7 +200,12 @@
     "emptyHelp": "容量と本数を選んでください。",
     "change": "変更",
     "remove": "削除",
-    "includedDetail": "診察料・送料・英文の処方証明書を含みます。",
+    "includedDetail": "診察料・送料は0円、英文処方証明書（PDF）は無料でお送りします。",
+    "consultationFee": "診察料",
+    "deliveryFee": "送料",
+    "certificatePdf": "英文処方証明書（PDF）",
+    "totalTaxIncluded": "合計（税込）",
+    "penAlt": "マンジャロ {dose} ペン",
     "toConfirm": "申し込み前の確認へ",
     "summary": "ご希望内容の控え",
     "edit": "修正する",
@@ -243,14 +248,24 @@
   },
   "pending": [
     "reviewed.services.0.body",
+    "reviewed.services.2.title",
+    "reviewed.services.2.body",
+    "reviewed.flow.3",
     "reviewed.footerHtml",
     "reviewed.importNotice",
     "reviewed.legal.quantity",
     "ui.doctorOnline",
+    "ui.trust3",
     "ui.goCart",
     "ui.changed",
     "ui.priceTableLink",
     "ui.readyHelp",
+    "ui.includedDetail",
+    "ui.consultationFee",
+    "ui.deliveryFee",
+    "ui.certificatePdf",
+    "ui.totalTaxIncluded",
+    "ui.penAlt",
     "ui.beginner",
     "ui.agreement1",
     "ui.agreement2",

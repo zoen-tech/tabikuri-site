@@ -1,6 +1,6 @@
 {
   "passed": true,
-  "verifiedAt": "2026-11-17T09:43:35.154Z",
+  "verifiedAt": "2026-11-17T09:51:04.405Z",
   "checks": [
     "S1-S9 and 404 in both languages: noindex, local-only requests, LINE pending guidance, and 360/390/768/1280 layouts passed",
     "S2-S4 flow: sticky refresh, replacement notice, revised actions, adjacent notices, Korean/Japanese final facts, and pending email-only LINE state passed",

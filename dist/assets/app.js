@@ -20,6 +20,7 @@
     const ui = (key, tag = "span", extra = "") => `<${tag}${attr(`ui.${key}`)}${extra}>${escape(copy.ui[key])}</${tag}>`;
     const reviewed = (key, text, tag = "span", extra = "") => `<${tag}${attr(`reviewed.${key}`)}${extra}>${escape(text)}</${tag}>`;
     const unit = lang === "ko" ? "엔" : "円";
+    const lineSeparator = lang === "ko" ? " · " : "・";
     const number = value => value.toLocaleString(lang === "ko" ? "ko-KR" : "ja-JP");
     const money = value => `<span class="price">${number(value)}<small>${unit}</small></span>`;
     const brand = typeof config.BRAND_NAME === "object" ? config.BRAND_NAME[lang] : config.BRAND_NAME;
@@ -102,12 +103,50 @@
       return `<div class="required-notices"><p>${escape(copy.reviewed.noPrescription)}</p>${ui("physicianChoice", "p")}</div>`;
     }
 
-    function doseArt() {
-      return `<div class="dose-art" aria-hidden="true">${prices.map(() => "<span></span>").join("")}</div>`;
+    function doseSwatches() {
+      return `<div class="dose-art image-fallback" aria-hidden="true" hidden>${prices.map(() => "<span></span>").join("")}</div>`;
+    }
+
+    function productImage(dose = "2.5mg", id = "") {
+      const alt = copy.ui.penAlt.replace("{dose}", dose);
+      return `<div class="product-image-slot" data-product-image${id ? ` id="${id}"` : ""}><img src="/assets/pens/pen-${escape(dose)}.png" alt="${escape(alt)}" width="320" height="180"${attr("ui.penAlt")}>${doseSwatches()}</div>`;
+    }
+
+    function prepareProductImages(scope = root) {
+      scope.querySelectorAll("[data-product-image]").forEach(slot => {
+        const image = slot.querySelector("img");
+        const fallback = slot.querySelector(".image-fallback");
+        const showFallback = () => {
+          image.hidden = true;
+          fallback.hidden = false;
+          slot.dataset.imageFallback = "true";
+        };
+        const showImage = () => {
+          image.hidden = false;
+          fallback.hidden = true;
+          delete slot.dataset.imageFallback;
+        };
+        image.addEventListener("load", showImage, { once: true });
+        image.addEventListener("error", showFallback, { once: true });
+        if (image.complete) image.naturalWidth ? showImage() : showFallback();
+      });
+    }
+
+    function updateProductImage(dose) {
+      const slot = root.querySelector("#selected-product-image");
+      if (!slot) return;
+      const replacement = document.createRange().createContextualFragment(productImage(dose, "selected-product-image"));
+      slot.replaceWith(replacement);
+      prepareProductImages(root);
     }
 
     function summaryLines(state, actions = false) {
-      return `<ul class="cart-lines">${state.lines.map(line => `<li class="cart-line" data-cart-dose="${escape(line.dose)}"><div class="line-main"><strong>${escape(copy.ui.product)} ${escape(line.dose)} · ${line.pens}${escape(copy.ui.pens)}</strong>${money(line.price)}</div>${actions ? `<div class="line-actions"><a class="text-button" href="${href("s2", { dose: line.dose })}">${escape(copy.ui.change)}</a><button class="text-button" type="button" data-remove="${escape(line.dose)}">${escape(copy.ui.remove)}</button></div>` : ""}</li>`).join("")}</ul>`;
+      return `<ul class="cart-lines">${state.lines.map(line => `<li class="cart-line" data-cart-dose="${escape(line.dose)}"><div class="line-main breakdown-row" data-breakdown-line><strong>${escape(copy.ui.product)} ${escape(line.dose)}${lineSeparator}${line.pens}${escape(copy.ui.pens)}</strong>${money(line.price)}</div>${actions ? `<div class="line-actions"><a class="text-button" href="${href("s2", { dose: line.dose })}">${escape(copy.ui.change)}</a><button class="text-button" type="button" data-remove="${escape(line.dose)}">${escape(copy.ui.remove)}</button></div>` : ""}</li>`).join("")}</ul>`;
+    }
+
+    function breakdownTotals(total) {
+      const zeroRows = [["consultationFee", "consultation"], ["deliveryFee", "delivery"], ["certificatePdf", "certificate"]];
+      return `<div class="price-breakdown" data-price-breakdown>${zeroRows.map(([key, type]) => `<div class="breakdown-row" data-breakdown-zero="${type}">${ui(key)}<span class="breakdown-amount">0${unit}</span></div>`).join("")}<div class="breakdown-row breakdown-total"><strong>${ui("totalTaxIncluded")}</strong>${money(total)}</div></div>`;
     }
 
     function bottomBar() {
@@ -122,16 +161,16 @@
 
     function home() {
       const first = prices[0];
-      return `<main id="main"><section class="section hero"><div class="clinic-name">${escape(brand)}</div><div class="eyebrow">${ui("clinicEyebrow")}</div><h1>${escape(copy.reviewed.heroTitle)}</h1><p class="doctor-line">${ui("doctorOnline")}</p><p class="hero-copy">${escape(copy.reviewed.heroBody)}</p><ul class="trust-list"><li>${escape(copy.ui.trust1)}</li><li>${escape(copy.ui.trust2)}</li><li>${escape(copy.ui.trust3)}</li></ul><a class="primary" href="${href("s2")}" data-event="view-prices">${escape(copy.ui.priceView)} ${icon("arrow")}</a></section>
-        <section class="section"><h2>${escape(copy.reviewed.servicesTitle)}</h2><ul class="service-list">${copy.reviewed.services.map((item, index) => `<li class="service-card"><h3>${escape(item.title)}</h3><p${attr(`reviewed.services.${index}.body`)}>${escape(item.body)}</p></li>`).join("")}</ul></section>
-        <section class="section soft"><h2>${ui("catalogTitle")}</h2><article class="product-card">${doseArt()}<h3><a class="product-link" href="${href("s2")}" data-event="view-product">${escape(copy.ui.product)}</a></h3><p class="subtle">${escape(copy.ui.doseRange)}</p><p>${escape(first[0])} · 4${escape(copy.ui.pens)} ${money(first[1])}</p><p class="subtle">${escape(copy.ui.included)}</p>${ui("trust1", "p", ' class="product-assurance"')}${ui("noticeSummary", "p", ' class="product-notice"')}<a href="${href("s6")}">${ui("noticeLink")}</a></article></section>
-        <section class="section"><h2>${escape(copy.reviewed.flowTitle)}</h2><ol class="flow-list">${copy.reviewed.flow.map(item => `<li>${escape(item)}</li>`).join("")}</ol><p><a href="${href("s5")}">${escape(copy.ui.moreGuide)}</a></p></section>
+      return `<main id="main"><section class="section hero"><div class="clinic-name">${escape(brand)}</div><div class="eyebrow">${ui("clinicEyebrow")}</div><h1>${escape(copy.reviewed.heroTitle)}</h1><p class="doctor-line">${ui("doctorOnline")}</p><p class="hero-copy">${escape(copy.reviewed.heroBody)}</p><ul class="trust-list"><li>${escape(copy.ui.trust1)}</li><li>${escape(copy.ui.trust2)}</li><li${attr("ui.trust3")}>${escape(copy.ui.trust3)}</li></ul><a class="primary" href="${href("s2")}" data-event="view-prices">${escape(copy.ui.priceView)} ${icon("arrow")}</a></section>
+        <section class="section"><h2>${escape(copy.reviewed.servicesTitle)}</h2><ul class="service-list">${copy.reviewed.services.map((item, index) => `<li class="service-card"><h3${attr(`reviewed.services.${index}.title`)}>${escape(item.title)}</h3><p${attr(`reviewed.services.${index}.body`)}>${escape(item.body)}</p></li>`).join("")}</ul></section>
+        <section class="section soft"><h2>${ui("catalogTitle")}</h2><article class="product-card">${productImage()}<h3><a class="product-link" href="${href("s2")}" data-event="view-product">${escape(copy.ui.product)}</a></h3><p class="subtle">${escape(copy.ui.doseRange)}</p><p>${escape(first[0])} · 4${escape(copy.ui.pens)} ${money(first[1])}</p><p class="subtle">${escape(copy.ui.included)}</p>${ui("trust1", "p", ' class="product-assurance"')}${ui("noticeSummary", "p", ' class="product-notice"')}<a href="${href("s6")}">${ui("noticeLink")}</a></article></section>
+        <section class="section"><h2>${escape(copy.reviewed.flowTitle)}</h2><ol class="flow-list">${copy.reviewed.flow.map((item, index) => `<li${attr(`reviewed.flow.${index}`)}>${escape(item)}</li>`).join("")}</ol><p><a href="${href("s5")}">${escape(copy.ui.moreGuide)}</a></p></section>
         <section class="section">${importNotice()}${medical()}</section>
         <section class="section"><div class="contact-card"><h2>${escape(copy.reviewed.contactTitle)}</h2>${config.LINE_ADD_URL ? "" : `<p>${escape(copy.reviewed.contactBody)}</p>`}<a class="email" href="mailto:${escape(copy.reviewed.email)}">${escape(copy.reviewed.email)}</a></div></section></main>${bottomBar()}`;
     }
 
     function product() {
-      return `<main id="main"><section class="section"><div class="eyebrow">${escape(copy.ui.product)}</div><h1>${escape(copy.meta.s2)}</h1><p>${ui("doctorOnline")}</p>${doseArt()}</section>
+      return `<main id="main"><section class="section"><div class="eyebrow">${escape(copy.ui.product)}</div><h1>${escape(copy.meta.s2)}</h1><p>${ui("doctorOnline")}</p>${productImage("2.5mg", "selected-product-image")}</section>
         <section class="section" id="selector"><div class="selector-group"><span class="selector-label">${escape(copy.ui.chooseDose)}</span><div class="dose-grid">${prices.map(([dose], index) => `<button class="dose-button" type="button" data-dose="${escape(dose)}" aria-pressed="false" data-event="select-dose"><span class="dose-dot" style="--dose:${["#212631","#7a50a2","#388560","#bc4b4b","#3c73bd","#d27632"][index]}"></span>${escape(dose)}</button>`).join("")}</div>${ui("beginner", "p", ' class="subtle"')}</div>
         <div class="selector-group"><span class="selector-label">${escape(copy.ui.chooseCount)}</span><p class="subtle">${escape(copy.ui.totalCaption)}</p><div class="count-grid">${COUNTS.map(count => `<button class="count-button" type="button" data-pens="${count}" aria-pressed="false" data-event="select-count"><span>${count}${escape(copy.ui.pens)} · ${count / 4}${escape(copy.ui.months)}</span><span class="count-price" data-count-price>—</span></button>`).join("")}</div></div>
         ${importNotice()}${requiredNotices()}<button class="primary" id="add-button" type="button" data-event="add-request" disabled>${ui("add")}</button><p class="disabled-reason" id="disabled-reason"${attr("ui.selectBoth")}>${escape(copy.ui.selectBoth)}</p></section>
@@ -143,7 +182,7 @@
     function cartPage() {
       const state = cart.snapshot();
       if (!state.count) return `<main id="main"><section class="section"><h1>${escape(copy.meta.s3)}</h1>${ui("empty", "p")} ${ui("emptyHelp", "p", ' class="subtle"')}<a class="primary" href="${href("s2")}">${escape(copy.ui.priceView)}</a></section></main>`;
-      return `<main id="main"><section class="section"><h1>${ui("cart")}</h1>${summaryLines(state, true)}<div class="total-box"><div class="total-row"><strong>${ui("fee")}</strong>${money(state.total)}</div><p class="subtle">${escape(copy.ui.includedDetail)}</p></div>${state.volatile ? ui("memoryOnly", "p", ' class="subtle"') : ""}</section><section class="section">${importNotice()}${medical()}${requiredNotices()}<a class="primary" href="${href("s4")}" data-event="proceed-confirm">${ui("reserve")}</a></section></main>${bottomBar()}`;
+      return `<main id="main"><section class="section"><h1>${ui("cart")}</h1>${summaryLines(state, true)}${breakdownTotals(state.total)}${state.volatile ? ui("memoryOnly", "p", ' class="subtle"') : ""}</section><section class="section">${importNotice()}${medical()}${requiredNotices()}<a class="primary" href="${href("s4")}" data-event="proceed-confirm">${ui("reserve")}</a></section></main>${bottomBar()}`;
     }
 
     function legalValue(key) {
@@ -153,9 +192,9 @@
     function confirmPage() {
       const state = cart.snapshot();
       if (!state.count) return `<main id="main"><section class="section"><h1>${escape(copy.meta.s4)}</h1>${ui("empty", "p")}<a class="primary" href="${href("s2")}">${escape(copy.ui.priceView)}</a></section></main>`;
-      const desired = state.lines.map(line => `${line.dose} · ${line.pens}${copy.ui.pens}`).join(" / ");
+      const desired = state.lines.map(line => `${line.dose}${lineSeparator}${line.pens}${copy.ui.pens}`).join(" / ");
       const facts = [
-        [copy.ui.desired, escape(desired)], [copy.ui.amount, `${number(state.total)}${unit}`],
+        [copy.ui.desired, escape(desired)],
         [copy.ui.payment, `${legalValue("paymentTiming")}／${legalValue("paymentMethod")}`, "finalPayment"],
         [copy.ui.deliveryTiming, legalValue("deliveryTiming"), "finalDelivery"], [copy.ui.cancel, legalValue("cancel"), "finalCancel"],
         [copy.ui.notPrescribed, legalValue("notPrescribed"), "finalNotPrescribed"]
@@ -167,13 +206,13 @@
         ? `<button class="primary" id="line-button" type="button" data-event="line-reservation"${attr("ui.lineButton")} disabled>${escape(copy.ui.lineButton)}</button>`
         : `<div class="contact-card" id="line-panel"${attr("ui.readyHelp")}><p>${escape(copy.ui.readyHelp)}</p><a class="email" href="mailto:${escape(copy.reviewed.email)}">${escape(copy.reviewed.email)}</a><p><a href="${href("s5")}">${escape(copy.ui.lineGuideTitle)}</a></p></div>`;
       const handoff = config.LINE_ADD_URL ? ui("handoff", "p", ' class="subtle"') : "";
-      return `<main id="main"><section class="section"><h1>${escape(copy.meta.s4)}</h1><h2>${escape(copy.ui.summary)}</h2>${summaryLines(state)}<p><a href="${href("s3")}">${escape(copy.ui.edit)}</a></p>${handoff}</section>
+      return `<main id="main"><section class="section"><h1>${escape(copy.meta.s4)}</h1><h2>${escape(copy.ui.summary)}</h2>${summaryLines(state)}${breakdownTotals(state.total)}<p><a href="${href("s3")}">${escape(copy.ui.edit)}</a></p>${handoff}</section>
         <section class="section soft"><h2>${escape(copy.ui.finalTitle)}</h2><dl class="fact-list" data-final-facts>${facts.map(fact => `<div><dt>${escape(fact[0])}</dt><dd>${factValue(fact)}</dd></div>`).join("")}</dl></section>
         <section class="section">${medical()}<h2>${escape(copy.ui.agreementTitle)}</h2><div class="agreements">${[1,2,3,4].map(index => `<label class="check"${attr(`ui.agreement${index}`)}><input type="checkbox" required data-agreement><span>${escape(copy.ui[`agreement${index}`])}</span></label>`).join("")}</div>${requiredNotices()}${lineAction}</section></main>`;
     }
 
     function guide() {
-      return `<main id="main"><section class="section"><div class="eyebrow">${escape(copy.ui.guideIntro)}</div><h1>${escape(copy.reviewed.flowTitle)}</h1><ol class="flow-list">${copy.reviewed.flow.map(item => `<li>${escape(item)}</li>`).join("")}</ol></section><section class="section soft"><h2>${escape(copy.ui.scheduleTitle)}</h2>${ui("scheduleBody", "p")}</section><section class="section"><h2>${escape(copy.ui.lineGuideTitle)}</h2><ol class="line-list">${copy.ui.lineSteps.map(item => `<li${attr("ui.lineSteps")}>${escape(item)}</li>`).join("")}</ol></section><section class="section"><h2>${escape(copy.ui.languageTitle)}</h2>${ui("languageBody", "p")}</section></main>`;
+      return `<main id="main"><section class="section"><div class="eyebrow">${escape(copy.ui.guideIntro)}</div><h1>${escape(copy.reviewed.flowTitle)}</h1><ol class="flow-list">${copy.reviewed.flow.map((item, index) => `<li${attr(`reviewed.flow.${index}`)}>${escape(item)}</li>`).join("")}</ol></section><section class="section soft"><h2>${escape(copy.ui.scheduleTitle)}</h2>${ui("scheduleBody", "p")}</section><section class="section"><h2>${escape(copy.ui.lineGuideTitle)}</h2><ol class="line-list">${copy.ui.lineSteps.map(item => `<li${attr("ui.lineSteps")}>${escape(item)}</li>`).join("")}</ol></section><section class="section"><h2>${escape(copy.ui.languageTitle)}</h2>${ui("languageBody", "p")}</section></main>`;
     }
 
     function notice() {
@@ -199,6 +238,7 @@
       root.innerHTML = `<div class="shell">${header()}${renderers[page]()}${footer()}</div>`;
       root.dataset.ready = "true";
       root.setAttribute("aria-busy", "false");
+      prepareProductImages();
       bind();
     };
 
@@ -240,6 +280,7 @@
         if (!prices.some(row => row[0] === dose)) dose = null;
         let pens = null;
         const add = document.querySelector("#add-button");
+        if (dose) updateProductImage(dose);
         const update = () => {
           document.querySelectorAll("[data-dose]").forEach(button => button.setAttribute("aria-pressed", String(button.dataset.dose === dose)));
           document.querySelectorAll("[data-pens]").forEach((button, index) => {
@@ -254,14 +295,16 @@
           if (key && pending.has(key)) { reason.dataset.review = "pending"; reason.dataset.copyKey = key; }
           else { delete reason.dataset.review; delete reason.dataset.copyKey; }
         };
-        root.querySelectorAll("[data-dose]").forEach(button => button.addEventListener("click", () => { dose = button.dataset.dose; pens = null; update(); }));
+        root.querySelectorAll("[data-dose]").forEach(button => button.addEventListener("click", () => { dose = button.dataset.dose; pens = null; updateProductImage(dose); update(); }));
         root.querySelectorAll("[data-pens]").forEach(button => button.addEventListener("click", () => { if (!dose) return; pens = Number(button.dataset.pens); update(); }));
         add.addEventListener("click", () => {
           const result = cart.add(dose, pens);
           if (!result.ok) return;
           const sheetTitle = result.replaced ? "changed" : "added";
           document.querySelector("#sheet-title").outerHTML = ui(sheetTitle, "h2", ' id="sheet-title"');
-          document.querySelector("#added-summary").innerHTML = summaryLines(result.state);
+          const line = result.state.lines.find(item => item.dose === dose);
+          const addedState = { lines: [line], total: line.price };
+          document.querySelector("#added-summary").innerHTML = `${summaryLines(addedState)}${breakdownTotals(addedState.total)}`;
           refreshRequestNavigation();
           document.querySelector("#added-sheet").showModal();
         });
